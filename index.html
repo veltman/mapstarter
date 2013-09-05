@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <title>Mapstarter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <!-- Bootstrap theme -->
+    <link href="css/bootstrap-theme.min.css" rel="stylesheet">
+    <link href="css/mapstarter.css" rel="stylesheet">
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="../../assets/js/html5shiv.js"></script>
+      <script src="../../assets/js/respond.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+
+    <!-- Fixed navbar -->
+    <div class="navbar navbar-default navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <span class="navbar-brand">Mapstarter</span>
+        </div>
+        <div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li class="active" id="choose-file"><a href="#choose-file">Choose File...</a></li>
+            <li id="size"><a href="#size">Size/Projection</a></li>
+            <li id="color"><a href="#color">Colors</a></li>
+            <li id="behavior"><a href="#behavior">Behavior</a></li>
+            <li id="data"><a href="#data">Data</a></li>
+            <li class="dropdown" id="download">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">Download <b class="caret"></b></a>
+              <ul class="dropdown-menu">
+                <li id="download-svg"><a href="#download-svg">SVG</a></li>
+                <li id="download-image"><a href="#download-image">Image</a></li>
+                <li id="download-code"><a href="#download-code">Code</a></li>                
+              </ul>
+            </li>            
+            <li><a href="#help" id="help">Help</a></li>            
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </div>
+
+    <div class="container">    
+      <div class="alert alert-dismissable hidden"><button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button><div class="alert-inner"></div></div>
+    </div>
+
+    <div class="container mapstarter-section" id="section-choose-file">      
+      <div class="panel panel-default" id="upload-target">
+        <div class="panel-body">
+          <div id="file-prompt">
+            Drag a shapefile, GeoJSON, or TopoJSON file here, or click to select one
+          </div>
+          <div class="progress progress-striped active">
+            <div class="progress-bar"  role="progressbar" aria-valuenow="100" aria-valuemin="100" aria-valuemax="100" style="width: 100%">    
+            </div>
+          </div>
+        </div>
+      </div>
+      <input type="file" id="upload-file" style="display: none;" />
+    </div><!-- /container -->
+
+    <div class="container mapstarter-section hidden" id="section-size">
+      <h2>Size/Projection Options</h2>
+      <div class="panel panel-default">      
+        <div class="panel-body">
+            <div class="text-center">
+              <form class="form-inline">
+
+                <label for="input-width">Width</label><input type="text" class="form-control" id="input-width" value="600" placeholder="Width" /><span class="form-control-static">px</span>
+
+                <label for="input-height">Height</label><input type="text" class="form-control" id="input-height" value="600" placeholder="Height" /><span class="form-control-static">px</span>
+
+                <label for="input-projection">Projection</label><select class="form-control" id="input-projection"><option value="mercator">Mercator (for world maps)</option><option value="albersUsa">Albers USA (for US maps)</option><option value="conicEqualArea">Conic Equal Area (broken)</option></select></span>
+
+                <button type="button" class="btn btn-primary map-update">Update</button> 
+
+              </form>
+            </div>
+        </div>
+      </div>      
+    </div><!-- /container -->
+
+    <div class="container mapstarter-section hidden" id="section-color">
+      <h2>Color/border options</h2>
+      <div class="panel panel-default">      
+        <div class="panel-body text-center">          
+          <form class="form-inline">
+            <span><label for="color-fill">Fill color</label><input type="color" id="color-fill" value="#4682b4" /></span>
+            <span><label for="color-highlight">Highlight color</label><input type="color" id="color-highlight" value="#ff6347" /></span>
+            <span><label for="color-stroke">Border color</label><input type="color" id="color-stroke" value="#ffffff" /></span>
+            <span><label for="color-stroke-width">Border width</label><input type="text" class="form-control" id="color-stroke-width" placeholder="in px" value="1.5" /></span>
+
+            <button type="button" class="btn btn-primary map-update">Update</button> 
+            
+          </form>
+        </div>
+      </div>
+    </div><!-- /container -->
+
+    <div class="container mapstarter-section hidden" id="section-behavior">
+      <h2>Behavior</h2>
+      <div class="panel panel-default">      
+        <div class="panel-body text-center">                    
+          <span><input type="checkbox" id="zoomable" checked /><label for="zoomable">Click on a feature to zoom</label></span>          
+          <span><input type="checkbox" id="pannable" /><label for="pannable">Drag to pan</label></span>
+        </div>
+      </div>      
+    </div><!-- /container -->    
+
+    <div class="container mapstarter-section hidden" id="section-data">
+      <h2>Attribute Table</h2>
+      <div class="panel panel-default">      
+        <div class="panel-body text-center">                    
+          <table id="attributes" class="table table-condensed table-hover table-bordered">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>            
+    </div><!-- /container -->      
+
+    <div class="container mapstarter-section hidden" id="section-download-svg">
+      <h2>Download as an SVG</h2>
+      <p class="lead text-center"><a href="#" class="btn btn-primary" id="svg-download">Click here</a> to download as an SVG.</p>
+    </div><!-- /container -->
+    <div class="container mapstarter-section hidden" id="section-download-image">
+      <h2>Download as an image</h2>
+      <p class="lead text-center"><button type="button" class="btn btn-primary" id="pancake-download">Click here</button> or right-click the image below to save it as a PNG.</p>
+      <div id="pancake-div"><img id="pancake-img" /></div>
+    </div><!-- /container -->
+
+    <div class="container mapstarter-section hidden" id="section-download-code">
+      <h2>Download: Code</h2>
+    </div><!-- /container -->    
+
+    <div class="container mapstarter-section hidden" id="section-help">
+      Help
+    </div><!-- /container -->
+
+    <div id="map-box" class="hidden">
+      <svg id="map">
+        <g id="draggable">
+          <g id="features">
+          </g>
+        </g>
+      </svg>
+    </div>       
+
+    <div id="junk" class="hidden"></div>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="//code.jquery.com/jquery.js"></script>
+
+    <!-- D3 and TopoJSON -->
+    <script src="http://d3js.org/d3.v3.js"></script>
+    <script src="http://d3js.org/topojson.v1.min.js"></script>
+
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/hashnav.min.js"></script>
+    <script src="js/pancake.stack.min.js"></script>    
+    <script src="js/mapstarter.js"></script>
+    <script>
+      var currentHash = null;
+
+      initHashNav(processHash);
+
+      function processHash(hash) {
+          if (currentHash != hash.base) {            
+            currentHash = (hash.base.length && (currentFile.data || hash.base == "help")) ? hash.base : "choose-file";
+            window.location.hash = currentHash;
+          }
+          showSection(currentHash);         
+      }
+
+      $("ul.navbar-nav a").click(function() {
+        if ((!currentFile.data || upload.classed("loading")) && !$(this).attr("href").match(/[#]?(choose-file|help)/)) {
+          return false;
+        }
+      });
+
+      function showSection(section) {        
+        $("ul.navbar-nav li").removeClass("active");
+        $("li#"+section).addClass("active");
+        $("div.mapstarter-section").addClass("hidden");
+        $("div#section-"+section).removeClass("hidden");
+
+        if (section.match(/^(download|choose-file|help)/)) {
+          if (section == "download-svg") {
+            //console.log(svg);
+            $("a#svg-download").attr("download",currentFile.name+".svg").attr("href",window.URL.createObjectURL(new Blob([getSVG()], { "type" : "text/xml" })));            
+            return true;  
+          }
+          mapBox.classed("hidden",true);
+          if (section == "download-image") {
+            var flapjack = Pancake("map");
+            $("img#pancake-img").attr("src",flapjack.src);
+
+            $("button#pancake-download").click(function() {
+              flapjack.download(currentFile.name+".png");
+            });            
+          }
+        } else {
+          mapBox.classed("hidden",false);
+        }
+      }
+
+    </script>    
+  </body>
+</html>
