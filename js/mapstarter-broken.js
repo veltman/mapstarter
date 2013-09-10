@@ -431,41 +431,7 @@ function updateProjection(data,width,height) {
       s = .95 / Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height),
       t = [(width - s * (b[1][0] + b[0][0])) / 2, (height - s * (b[1][1] + b[0][1])) / 2];
 
-  //mapOptions.projection = mapOptions.projection.scale(s).translate(t);
-  //mapOptions.path = d3.geo.path()
-  //    .projection(mapOptions.projection);    
-  //paths.attr("d",mapOptions.path);
-  //return true;  
-
-  mapOptions.projection = mapOptions.projection.scale(s);
-
-  mapOptions.path = d3.geo.path()
-      .projection(mapOptions.projection);    
-
-
-  if ("center" in mapOptions.projection && mapOptions.projectionType != 'conicEqualArea') {
-
-    mapOptions.projection.translate([0,0]);
-
-    var inv = mapOptions.projection.invert([width/2 - t[0], height/2 - t[1]]);
-    console.log(inv);
-    
-    mapOptions.projection.center(inv);
-
-    mapOptions.projection.translate([width/2,height/2]);
-  } else if (mapOptions.projectionType == 'conicEqualArea') {
-    mapOptions.projection.translate(t);
-  }
-
-
-
-
-
-
-
-
-
-
+  mapOptions.projection = mapOptions.projection.scale(s).translate(t);
 
   paths.attr("d",mapOptions.path);
 

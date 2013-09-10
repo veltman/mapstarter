@@ -408,20 +408,6 @@ function updateProjection(data,width,height) {
       .scale(1)
       .translate([0, 0]);                    
 
-  //Add parallels for conicEqualArea
-  //Need to figure out rotation
-  if (mapOptions.projectionType == 'conicEqualArea') {
-    
-    var c = d3.geo.centroid(data);
-
-    rotation = [(c[0] < 0) ? Math.abs(c[0]) : (360-c[0]) % 360,0];
-    
-    var bounds = d3.geo.bounds(data);
-    mapOptions.projection.center(c)
-      .parallels([bounds[0][1],bounds[1][1]])
-      .rotate(rotation);
-  }            
-
   // Create a path generator.
   mapOptions.path = d3.geo.path()
       .projection(mapOptions.projection);
@@ -431,41 +417,37 @@ function updateProjection(data,width,height) {
       s = .95 / Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height),
       t = [(width - s * (b[1][0] + b[0][0])) / 2, (height - s * (b[1][1] + b[0][1])) / 2];
 
-  //mapOptions.projection = mapOptions.projection.scale(s).translate(t);
-  //mapOptions.path = d3.geo.path()
-  //    .projection(mapOptions.projection);    
-  //paths.attr("d",mapOptions.path);
-  //return true;  
+  //t = t.map(function(d){return d-100;});
 
-  mapOptions.projection = mapOptions.projection.scale(s);
+  /*mapOptions.projection = */
+
+
+  mapOptions.projection = d3.geo[mapOptions.projectionType]()
+      .scale(s)
+      .translate([0, 0]);    
 
   mapOptions.path = d3.geo.path()
-      .projection(mapOptions.projection);    
+      .projection(mapOptions.projection);       
 
+  if ("center" in mapOptions.projection) {
+      
+    if (mapOptions.projectionType == 'conicEqualArea') {
+      var c = d3.geo.centroid(data);
+      var rotation = [(c[0] < 0) ? Math.abs(c[0]) : (360-c[0]) % 360,0];      
+      var bounds = d3.geo.bounds(data);
+      mapOptions.projection
+        .parallels([bounds[0][1],bounds[1][1]])
+        .rotate(rotation);    
+    } else {
+      var c = mapOptions.projection.invert([width/2 - t[0], height/2 - t[1]]);
+      mapOptions.projection.center(c);
+    }
 
-  if ("center" in mapOptions.projection && mapOptions.projectionType != 'conicEqualArea') {
-
-    mapOptions.projection.translate([0,0]);
-
-    var inv = mapOptions.projection.invert([width/2 - t[0], height/2 - t[1]]);
-    console.log(inv);
-    
-    mapOptions.projection.center(inv);
-
-    mapOptions.projection.translate([width/2,height/2]);
-  } else if (mapOptions.projectionType == 'conicEqualArea') {
-    mapOptions.projection.translate(t);
   }
 
-
-
-
-
-
-
-
-
-
+  mapOptions.projection.translate([width/2,height/2]);
+  //mapOptions.projection.invert([]);
+  //console.log(t);
 
   paths.attr("d",mapOptions.path);
 
