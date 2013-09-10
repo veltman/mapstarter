@@ -4,6 +4,12 @@ body {
   padding-top: 70px;
 }
 
+span.navbar-brand, .navbar-default .navbar-brand,span.navbar-brand:hover, .navbar-default .navbar-brand:hover {
+  font-weight: bold;
+  color: steelblue;
+  cursor: default;
+}
+
 #map-box {
   margin-left: auto;
   margin-right: auto;
@@ -52,6 +58,25 @@ div#upload-target.loading div#file-prompt {
 
 div#upload-target.loading div.progress {
   display: block;
+}
+
+a.sample-data {
+  margin-left: 16px;
+  white-space: nowrap;
+}
+
+div#section-choose-file {
+  margin-bottom: 16px;
+}
+
+div#section-help h3 {
+  margin-top: 8px;
+  margin-bottom: 4px;
+  font-weight: bold;
+}
+
+a.sample-data:first {
+  margin-left: 8px;
 }
 
 div#pancake-div {
