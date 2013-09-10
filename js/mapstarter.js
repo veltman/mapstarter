@@ -230,7 +230,7 @@ function tryShapefile(file) {
     //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
     d3.xhr("shapefile.php").post(formData,function(error,response) {          
       try {
-        var newFile = {name: file.name, size: file.size, data: JSON.parse(response.responseText), type: "geojson"};              
+        var newFile = {name: file.name, size: file.size, data: JSON.parse(response.responseText), type: "geojson", topology: null};              
       } catch(err) {         
         msg("Not a valid file.  Shapefiles must be .zip files including a .shp, .dbf, and .shx file.",false);
         return false;
@@ -267,12 +267,13 @@ function loaded(newFile) {
 
       }
 
-      //If it's TopoJSON, convert it first
-      if (newFile.type == "geojson") {
-        var f = newFile.data.features;
-      } else {
-        var f = topojson.feature(newFile.data, newFile.data.objects[getObjectName(newFile.data)]);
-      }      
+      //Should preserve the topo at some point
+      if (newFile.type == "topojson") {
+        newFile.topology = newFile.data;
+        newFile.data = topojson.feature(newFile.data, newFile.data.objects[getObjectName(newFile.data)]);        
+      }
+      
+      var f = newFile.data.features;
 
       //Update current file display
       msg("Current File: <span>"+newFile.name+"</span> ("+prettySize(newFile.size)+")",true);           
@@ -281,7 +282,7 @@ function loaded(newFile) {
       
       //Get distinct properties for the attribute table, try to put ID and Name columns first, otherwise leave it alone
       var set = d3.set();
-      currentFile.data.features.forEach(function(d) {
+      f.forEach(function(d) {
         for (prop in d.properties) {
           set.add(prop);
         }              
@@ -406,11 +407,15 @@ function updateProjection(data,width,height) {
   // Create a unit projection.
   mapOptions.projection = d3.geo[mapOptions.projectionType]()
       .scale(1)
-      .translate([0, 0]);                    
+      .translate([0, 0]);
+
+  // Create a path generator.
+  mapOptions.path = d3.geo.path()
+      .projection(mapOptions.projection);      
 
   //Add parallels for conicEqualArea
   //Need to figure out rotation
-  if (mapOptions.projectionType == 'conicEqualArea') {
+  if ("parallels" in mapOptions.projection) {
     
     var c = d3.geo.centroid(data);
 
@@ -422,50 +427,38 @@ function updateProjection(data,width,height) {
       .rotate(rotation);
   }            
 
-  // Create a path generator.
-  mapOptions.path = d3.geo.path()
-      .projection(mapOptions.projection);
-
   // Compute the bounds of a feature of interest, then derive scale & translate.
   var b = mapOptions.path.bounds(data),
       s = .95 / Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height),
       t = [(width - s * (b[1][0] + b[0][0])) / 2, (height - s * (b[1][1] + b[0][1])) / 2];
 
-  //mapOptions.projection = mapOptions.projection.scale(s).translate(t);
-  //mapOptions.path = d3.geo.path()
-  //    .projection(mapOptions.projection);    
-  //paths.attr("d",mapOptions.path);
-  //return true;  
+  mapOptions.projection.scale(s);
 
-  mapOptions.projection = mapOptions.projection.scale(s);
+  if ("parallels" in mapOptions.projection) {
+    mapOptions.projection.translate(t);
+  } else {
 
-  mapOptions.path = d3.geo.path()
-      .projection(mapOptions.projection);    
+    if ("center" in mapOptions.projection) {
 
+      mapOptions.projection.translate([0,0]);
 
-  if ("center" in mapOptions.projection && mapOptions.projectionType != 'conicEqualArea') {
+      var inv = mapOptions.projection.invert([width/2 - t[0], height/2 - t[1]]);      
 
-    mapOptions.projection.translate([0,0]);
+      mapOptions.projection.center(inv);
+  
+    } else {
 
-    var inv = mapOptions.projection.invert([width/2 - t[0], height/2 - t[1]]);
-    console.log(inv);
-    
-    mapOptions.projection.center(inv);
+      mapOptions.projection = d3.geo[mapOptions.projectionType]()
+        .scale(s);
+
+    }
 
     mapOptions.projection.translate([width/2,height/2]);
-  } else if (mapOptions.projectionType == 'conicEqualArea') {
-    mapOptions.projection.translate(t);
+
+    mapOptions.path = d3.geo.path()
+      .projection(mapOptions.projection);
+
   }
-
-
-
-
-
-
-
-
-
-
 
   paths.attr("d",mapOptions.path);
 
@@ -556,18 +549,3 @@ function getObjectName(topo) {
   for (var i in topo.objects) return i;
   return false;
 }
-
-/*
-function getTopo() {
-  //Passively convert to TopoJSON in the background
-  if (newFile.type == "geojson") {
-    console.log('sending new data');
-    $.post("to-topojson.php",{geojson: JSON.stringify(newFile.data)},function(data) {
-      if (data)
-      currentFile.topo = data;
-    },"json");
-  }
-}
-
-
-*/

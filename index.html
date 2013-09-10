@@ -68,6 +68,7 @@
       <div>
         Or try a sample data file:
         <a href="#sample-data" data-filename="ca.json" class="sample-data">California congressional districts</a>
+        <a href="#sample-data" data-filename="us-counties.json" class="sample-data">US counties</a>
         <a href="#sample-data" data-filename="pakistan.json" class="sample-data">Pakistan electoral districts</a>
         <a href="#sample-data" data-filename="africa.json" class="sample-data">Africa</a>
         <a href="#sample-data" data-filename="southamerica.json" class="sample-data">South America</a>
@@ -252,6 +253,7 @@
     <script src="js/hashnav.min.js"></script>
     <script src="js/highlight.min.js"></script>
     <script src="js/pancake.stack.min.js"></script>
+    <script src="js/template.js"></script>
     <script src="js/mapstarter.js"></script>
     <script>
       var currentHash = null;
@@ -287,9 +289,10 @@
             return true;
           } else if (section == "download-code") {
 
-            var codeContents = getCode();
+            var codeContents = generateCode(currentFile,mapOptions);
 
             code.text(codeContents);
+            
             hljs.highlightBlock(code.node());
 
             return true;
