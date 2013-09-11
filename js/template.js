@@ -12,7 +12,7 @@ function generateCode(file,options) {
         function() { if (options.strokeWidth > 0) return '  stroke: '+options.stroke+';'; return '  stroke: none;' },
         '  fill: '+options.fill+';',
         '  cursor: pointer;',
-        '}',.length
+        '}',
         '',
         function() { if (options.highlight != options.fill) return 'path:hover, path.higlighted {';  return null; },
         function() { if (options.highlight != options.fill) return '  fill: '+options.highlight+';';  return null; },
@@ -30,12 +30,10 @@ function generateCode(file,options) {
         '',
         '//Map projection',
         'var projection = d3.geo.'+options.projectionType+'()',
-        function() {
-            return '    .scale('+options.projection.scale()+')'+
-            (("center" in options.projection) ? '' : ';') + ' //map scale'},
+        '    .scale('+options.projection.scale()+')',
         function() {
             if ("center" in options.projection)
-                return '    .center('+options.projection.center()+') //projection center';
+                return '    .center(['+options.projection.center().join(",")+']) //projection center';
             return null;
         },            
         function() {
@@ -49,8 +47,10 @@ function generateCode(file,options) {
             return null;
         },
         function() {
-            if ("center" in options.projection)
+            if ("parallels" in options.projection)
                 return '    .translate(['+options.projection.translate().join(",")+']) //translate to center the map in view';
+
+            return '    .translate([width/2,height/2]) //translate to center the map in view';
             return null;
         },          
         '',
@@ -70,18 +70,18 @@ function generateCode(file,options) {
         function() { if (options.clickToZoom) return '//Keeps track of currently zoomed feature'; return null; },
         function() { if (options.clickToZoom) return 'var centered;'; return null; },
         function() { if (options.clickToZoom) return ''; return null; },,
-        'd3.json('+file.name+',function(error,geodata) {',
+        'd3.json("'+file.name+'",function(error,geodata) {',
         '  if (error) return console.log(error); //unknown error, check the console',
         '',
         '  //Create a path for each map feature in the data',
         '  features.selectAll("path")',
         function() {            
             if (file.type == "topojson") {
-                for (var o in file.topology.objects) {
+                for (var o in file.data.topo.objects) {
                     if (!o.match(/^[$_A-Za-z][$_A-Za-z0-9]+$/)) {
-                        return '    .data(topojson.feature(geodata,geodata.objects["'+o.replace('"','\"')+'"])) //generate features from TopoJSON';
+                        return '    .data(topojson.feature(geodata,geodata.objects["'+o.replace('"','\"')+'"]).features) //generate features from TopoJSON';
                     }
-                    return '    .data(topojson(geodata,geodata.objects.'+o+')) //generate features from TopoJSON';
+                    return '    .data(topojson.feature(geodata,geodata.objects.'+o+').features) //generate features from TopoJSON';
                 }
             }
             return '    .data(geodata.features)';
@@ -124,11 +124,12 @@ function generateCode(file,options) {
                 '      .classed("highlighted",function(d) {',
                 '          return d === centered;',
                 function() { return '      })'+(options.strokeWidth ? '' : ';' ); },
-                function() { if (options.strokeWidth) return '      .attr("stroke-width", '+options.strokeWidth+' / k + "px"); //Scale the border thickness so it stays constant'; return null; },
+                function() { if (options.strokeWidth) return '      .style("stroke-width", '+options.strokeWidth+' / k + "px"); //Scale the border thickness so it stays constant'; return null; },
                 '',
                 '  //Zoom and re-center the map',
-                '  features.transition()',
-                '      .duration(500)',
+                '  features',
+                '      .transition() //smooth zooming, remove this line to make zoom instant (improves performance)',
+                '      .duration(500)  //smooth zooming, remove this line to make zoom instant (improves performance)',
                 '      .attr("transform","translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")");',
                 '}',
                 ''

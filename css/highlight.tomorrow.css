@@ -1,4 +1,12 @@
 /* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+
+pre, code, textarea {
+  font-family: "Menlo", monospace;
+  font-size: 15px;
+  line-height: normal;
+}
+
+/*
 .tomorrow-comment, pre .comment, pre .title {
   color: #8e908c;
 }
@@ -30,14 +38,14 @@
 .tomorrow-purple, pre .keyword, pre .javascript .function {
   color: #8959a8;
 }
-
+*/
 pre code {
   display: block;
   background: white;
   color: #4d4d4c;
   padding: 0.5em;
 }
-
+/*
 pre .coffeescript .javascript,
 pre .javascript .xml,
 pre .tex .formula,
@@ -46,4 +54,34 @@ pre .xml .vbscript,
 pre .xml .css,
 pre .xml .cdata {
   opacity: 0.5;
+}
+*/
+
+.html .value,
+.javascript .string,
+.javascript .regexp {
+  color: #756bb1;
+}
+
+.html .tag,
+.css .tag,
+.javascript .keyword {
+  color: #3182bd;
+}
+
+aside,
+.comment {
+  color: #636363;
+}
+
+.html .doctype,
+.javascript .number {
+  color: #31a354;
+}
+
+.html .attribute,
+.css .attribute,
+.javascript .class,
+.javascript .special {
+  color: #e6550d;
 }

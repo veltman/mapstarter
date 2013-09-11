@@ -1,3 +1,6 @@
+//For hash-based navigation
+var currentHash = null;
+
 //Initialize selectors. Mixing D3 & jQuery... what could go wrong??
 var mapBox = d3.select("div#map-box"),
   map = d3.select("svg#map"),
@@ -11,7 +14,9 @@ var mapBox = d3.select("div#map-box"),
   attributesColumns, attributesRows;
 
 //Need this as jQuery for now, D3 click simulation for upload not working      
-var $uploadFile = $("#upload-file");
+var $uploadFile = $("#upload-file")
+  $body = $("body"),
+  $alert = $("div.alert:first");
 
 //Storing file properties
 var currentFile = {
@@ -86,6 +91,13 @@ upload.on("drop",function() {
   }
 });
 
+//Cancel menu actions while loading
+$("ul.navbar-nav a").click(function() {
+  if ((!currentFile.name || upload.classed("loading")) && !$(this).attr("href").match(/[#]?(choose-file|help)/)) {
+    return false;
+  }
+});
+
 //Clicking the drag target instead triggers a <hidden input type="file">
 upload.on("click",function() {       
   if (!upload.classed("loading")) $uploadFile.click();
@@ -156,6 +168,10 @@ $("button.map-update").click(function() {
   scaleMap();
 });
 
+$("li#choose-file a").click(function() {
+  if (!upload.classed("loading")) $uploadFile.click();
+});
+
 //Process sample data links
 $("a.sample-data").click(function() {      
   var fn = $(this).data("filename");
@@ -183,8 +199,9 @@ $("a.sample-data").click(function() {
 function readFile(file) {
 
   upload.classed("loading",true);
+  $body.addClass("blanked");
 
-  var newFile = {name: file.name, size: file.size, data: null, type: null};
+  var newFile = {name: file.name, size: file.size, data: {topo: null, geo: null}, type: null};
 
   var reader = new FileReader();
   reader.onload = function (e) {
@@ -192,8 +209,15 @@ function readFile(file) {
     //If it's not JSON, catch the error and try it as a shapefile instead  
     try {
 
-      newFile.data = JSON.parse(e.target.result);            
-      newFile.type = jsonType(newFile.data);
+      var d = JSON.parse(e.target.result);              
+      newFile.type = jsonType(d);
+
+      if (newFile.type == "topojson") {
+        newFile.data.topo = d;
+        newFile.data.geo = fixGeo(topojson.feature(d, d.objects[getObjectName(d)]));
+      } else {
+        newFile.data.geo = fixGeo(d);
+      }
 
       if (!newFile.type) {
         tryShapefile(file);
@@ -230,8 +254,9 @@ function tryShapefile(file) {
     //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
     d3.xhr("shapefile.php").post(formData,function(error,response) {          
       try {
-        var newFile = {name: file.name, size: file.size, data: JSON.parse(response.responseText), type: "geojson", topology: null};              
-      } catch(err) {         
+        var newFile = {name: file.name, size: file.size, data: {topo: null, geo: geoFix(JSON.parse(response.responseText))}, type: "geojson"};              
+      } catch(err) {
+        if (currentFile.name) $body.removeClass("blanked");
         msg("Not a valid file.  Shapefiles must be .zip files including a .shp, .dbf, and .shx file.",false);
         return false;
       }
@@ -244,7 +269,7 @@ function tryShapefile(file) {
     });
 
   } else {
-
+    if (currentFile.name) $body.removeClass("blanked");
     msg("Not a valid file.  Shapefiles must be .zip files including a .shp, .dbf, and .shx file.",false);
 
   }
@@ -253,33 +278,27 @@ function tryShapefile(file) {
 //Process newly loaded data
 function loaded(newFile) {          
 
-      //If it's TopoJSON, convert it first (only one object per topology supported, for now)
-      if (newFile.type === "geojson" && newFile.data.type != "FeatureCollection")  {
-        //If it's GeoJSON but not a FeatureCollection, make it a FeatureCollection with a single feature for consistency
-
-        //It's a geometry, put it into an empty feature
-        if (newFile.data.type != "Feature") {
-          newFile.data = {type: "Feature", geometry: newFile.data, properties: {}};
-        }
-
-        //Create FeatureCollection
-        newFile.data = {type: "FeatureCollection", features: [newFile.data]};
-
-      }
-
-      //Should preserve the topo at some point
-      if (newFile.type == "topojson") {
-        newFile.topology = newFile.data;
-        newFile.data = topojson.feature(newFile.data, newFile.data.objects[getObjectName(newFile.data)]);        
-      }
-      
-      var f = newFile.data.features;
-
-      //Update current file display
-      msg("Current File: <span>"+newFile.name+"</span> ("+prettySize(newFile.size)+")",true);           
+      $body.removeClass("blanked");
 
       currentFile = newFile;
+
+      var f = currentFile.data.geo.features;
+
+      if (isUSA(currentFile.data.geo)) {
+        mapOptions.projectionType = "albersUsa";
+        $("select#input-projection").val("albersUsa");
+      } else {
+        mapOptions.projectionType = "mercator";
+        $("select#input-projection").val("mercator");
+      }
+
+      //Update current file display
+      $("#file-status-inner").removeClass("hidden").html("Current File: <a href=\"#\" class=\"filename data-download\">"+currentFile.name+"</a> <span class=\"filesize\">("+prettySize(currentFile.size)+")</span>",true);           
       
+      //Set download links
+      $("a.data-download").attr("download",currentFile.name).html(currentFile.name).attr("href",window.URL.createObjectURL(new Blob([JSON.stringify((currentFile.type == "topojson") ? currentFile.data.topo : currentFile.data.geo)], { "type" : "application/json" })));
+
+
       //Get distinct properties for the attribute table, try to put ID and Name columns first, otherwise leave it alone
       var set = d3.set();
       f.forEach(function(d) {
@@ -306,7 +325,7 @@ function loaded(newFile) {
           map.select("path#path"+i+":not(.clicked)").attr("fill",mapOptions.fill);
         })
         .on("click",function(d,i) {          
-          clicked(currentFile.data.features[i]);
+          clicked(currentFile.data.geo.features[i]);
         });
 
       //Stringify any non-primitive data values
@@ -383,7 +402,7 @@ function scaleMap() {
     .style("height",mapOptions.height+"px");
 
   //Update the projection to center and fit in the provided box
-  updateProjection(currentFile.data,mapOptions.width,mapOptions.height);
+  updateProjection(currentFile.data.geo,mapOptions.width,mapOptions.height);
 }
 
 //Remove any applied transforms
@@ -404,17 +423,17 @@ function updateProjection(data,width,height) {
 
   resetMap();
 
-  // Create a unit projection.
+  //Projection at unit scale
   mapOptions.projection = d3.geo[mapOptions.projectionType]()
       .scale(1)
       .translate([0, 0]);
 
-  // Create a path generator.
+  //Path generator
   mapOptions.path = d3.geo.path()
       .projection(mapOptions.projection);      
 
-  //Add parallels for conicEqualArea
-  //Need to figure out rotation
+  //Use min/max lat of data as parallels for conicEqualArea
+  //Rotate around lng of the data centroid
   if ("parallels" in mapOptions.projection) {
     
     var c = d3.geo.centroid(data);
@@ -427,7 +446,7 @@ function updateProjection(data,width,height) {
       .rotate(rotation);
   }            
 
-  // Compute the bounds of a feature of interest, then derive scale & translate.
+  //Find the max scale based on data bounds at unit scale, with 5% padding
   var b = mapOptions.path.bounds(data),
       s = .95 / Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height),
       t = [(width - s * (b[1][0] + b[0][0])) / 2, (height - s * (b[1][1] + b[0][1])) / 2];
@@ -440,6 +459,7 @@ function updateProjection(data,width,height) {
 
     if ("center" in mapOptions.projection) {
 
+      //Infer the true map center from the pixels, reset the projection to have simple center/translate for code readability
       mapOptions.projection.translate([0,0]);
 
       var inv = mapOptions.projection.invert([width/2 - t[0], height/2 - t[1]]);      
@@ -448,11 +468,14 @@ function updateProjection(data,width,height) {
   
     } else {
 
+      //It's a fixed proj like albersUsa, just scale it
       mapOptions.projection = d3.geo[mapOptions.projectionType]()
         .scale(s);
 
     }
 
+    //Can't do this with conic because of discrepancy between centroid and simple center
+    //(middle x, middle y not same as weighted centroid unless it's a perfectly regular shape)
     mapOptions.projection.translate([width/2,height/2]);
 
     mapOptions.path = d3.geo.path()
@@ -502,7 +525,7 @@ function clicked(d) {
 function getSVG() {
   var svg = '<?xml version="1.0" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg width="'+mapOptions.width+'" height="'+mapOptions.height+'" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
 
-  currentFile.data.features.forEach(function(d) {
+  currentFile.data.geo.features.forEach(function(d) {
     svg += '<path stroke-width="'+mapOptions.strokeWidth+'" stroke="'+mapOptions.stroke+'" fill="'+mapOptions.fill+'" d="'+mapOptions.path(d)+'" />';
   });
 
@@ -530,8 +553,6 @@ function oppositeColor(color) {
 //Throw an error message
 function msg(message,success) {
 
-  var $alert = $("div.alert:first");
-
   $alert.find("div").html(message);
 
   if (success) {
@@ -540,12 +561,96 @@ function msg(message,success) {
     $alert.addClass("alert-danger").removeClass("alert-info");
   }
 
-  $alert.removeClass("hidden").show();
+  $alert.removeClass("hidden");
   upload.classed("loading",false);
           
 }
 
+//Get the first object set from a TopoJSON file
 function getObjectName(topo) {
   for (var i in topo.objects) return i;
   return false;
 }
+
+//If it's GeoJSON but not a FeatureCollection, make it a FeatureCollection with a single feature for consistency
+function fixGeo(g) {
+
+  if (g.type == "FeatureCollection")  return g;
+
+  if (g.type == "Feature") return {type: "FeatureCollection", features: [g]};
+
+  return {type: "FeatureCollection", features: [{type: "Feature", geometry: g, properties: {}}]};
+
+}
+
+function processHash(hash) {
+    if (currentHash != hash.base) {            
+      currentHash = (hash.base.length && (currentFile.data || hash.base == "help")) ? hash.base : "choose-file";
+      window.location.hash = currentHash;
+    }
+    showSection(currentHash);         
+}
+
+//hashNav function for showing/hiding sections, generating stuff as needed
+function showSection(section) {        
+  $("ul.navbar-nav li").removeClass("active");
+  $("li#"+section).addClass("active");
+  $("div.mapstarter-section").addClass("hidden");
+  $("div#section-"+section).removeClass("hidden");
+  $alert.addClass("hidden");
+
+  if (currentFile && currentFile.name) resetMap();
+
+  if (section.match(/^(download|choose-file|help)/)) {     
+    
+    if (section == "download-svg") {            
+
+      var filename = currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"")+".svg";
+
+      $("a#svg-download").attr("download",filename).attr("href",window.URL.createObjectURL(new Blob([getSVG()], { "type" : "text/xml" })));            
+      return true;
+
+    } else if (section == "download-code") {
+
+      var filebase = currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"");
+
+      var codeContents = generateCode(currentFile,mapOptions);
+
+      code.text(codeContents);
+
+      $("a#code-download").attr("download",filebase+".html").html(filebase+".html").attr("href",window.URL.createObjectURL(new Blob([codeContents], { "type" : "text/html" })));      
+      
+      hljs.highlightBlock(code.node());
+
+      return true;
+    }
+
+    mapBox.classed("hidden",true);
+
+    if (section == "download-image") {            
+
+      var flapjack = Pancake("map");
+      $("img#pancake-img").attr("src",flapjack.src);
+
+      $("button#pancake-download").click(function() {
+        flapjack.download(currentFile.name+".png");
+      });
+
+    }
+    if (section == "choose-file") $("div#section-help").removeClass("hidden");
+
+  } else {
+    mapBox.classed("hidden",false);
+  }
+}
+
+//Attempt to detect a US map including AK and HI, switch to albersUsa
+function isUSA(data) {
+  var a = d3.geo.area(data),
+  b = d3.geo.bounds(data);
+
+  return (a > 0.21 && a < 0.24 && b[0][0] > 170 && b[0][0] < 174 && b[0][1] > 15 && b[0][1] < 19 && b[1][0] > -67 && b[1][0] < -61 && b[1][1] > 68 && b[1][1] < 74);
+
+}
+
+initHashNav(processHash);
