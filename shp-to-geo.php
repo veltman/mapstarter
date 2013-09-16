@@ -1,9 +1,10 @@
 <?php
 
     $tmp_name = $_FILES["shapefile"]["tmp_name"];    
-    $success = move_uploaded_file($tmp_name, $tmp_name.".zip");        
+    $success = move_uploaded_file($tmp_name, $tmp_name.".zip");        	
     
-	$url = "http://ogre.adc4gis.com/convert";
+    $url = "http://dev.noahveltman.com/node/shp-to-geo";
+	//$url = "http://ogre.adc4gis.com/convert";
 
 	$ch = curl_init($url);
 	curl_setopt ($ch, CURLOPT_FOLLOWLOCATION, TRUE);		

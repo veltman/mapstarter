@@ -57,8 +57,13 @@
           <div id="file-prompt">
             Drag a shapefile, GeoJSON, or TopoJSON file here, or click to select one
           </div>
-          <div class="progress progress-striped active">
-            <div class="progress-bar"  role="progressbar" aria-valuenow="100" aria-valuemin="100" aria-valuemax="100" style="width: 100%">    
+          <div id="file-loading">
+            <div class="loading-caption">
+              Processing the data, this may take a moment...
+            </div>
+            <div class="progress progress-striped active">
+              <div class="progress-bar"  role="progressbar" aria-valuenow="100" aria-valuemin="100" aria-valuemax="100" style="width: 100%">    
+              </div>
             </div>
           </div>
         </div>
@@ -165,7 +170,9 @@
 
                 <label for="input-height">Height</label><input type="number" class="form-control" id="input-height" value="600" min="1" max="3600" placeholder="Height" /><span class="form-control-static">px</span>
 
-                <label for="input-projection">Projection</label><select class="form-control" id="input-projection"><option value="mercator">Mercator (good for world maps)</option><option value="conicEqualArea">Conic Equal Area (good for chloropleths)</option><option value="equirectangular">Equirectangular (simple but distorting)</option><option value="albersUsa">Albers USA (US only, insets AK and HI)</option></select></span>
+                <label for="input-projection">Projection</label><select class="form-control" id="input-projection"><option value="mercator">Mercator (good for world maps)</option><option value="conicEqualArea">Conic Equal Area (good for chloropleths)</option><option value="equirectangular">Equirectangular (simple but distorting)</option><option value="albersUsa">Albers USA (US only, insets AK and HI)</option></select>
+
+                <label for="input-height">Responsive <span class="help-tooltip" data-animation="" title="Only affects the 'Download Code' option, map will automatically fill the surrounding &lt;div&gt;">?</span></label><input type="checkbox" id="responsive" />
 
                 <button type="button" class="btn btn-primary map-update">Update</button> 
 
@@ -184,7 +191,7 @@
             <span><label for="color-highlight">Highlight color</label><input type="color" id="color-highlight" value="#ff6347" /></span>
             <span><label for="color-stroke">Border color</label><input type="color" id="color-stroke" value="#ffffff" /></span>
             <span><label for="color-stroke-width">Border width</label><input type="number" step="0.25" min="0" class="form-control" id="color-stroke-width" placeholder="in px" value="1.00" /></span>
-
+            
             <button type="button" class="btn btn-primary map-update">Update</button> 
             
           </form>
@@ -206,7 +213,7 @@
       <h3>Attribute Table</h3>
       <div class="panel panel-default">      
         <div class="panel-body text-center">                    
-          <table id="attributes" class="table table-condensed table-hover table-bordered">
+          <table id="attributes">
             <thead></thead>
             <tbody></tbody>
           </table>
@@ -222,11 +229,23 @@
     <div class="container mapstarter-section hidden" id="section-download-image">
       <h3>Download as an image</h3>
       <p class="lead text-center"><button type="button" class="btn btn-primary" id="pancake-download">Click here</button> or right-click the image below to save it as a PNG.</p>
-      <div id="pancake-div"><img id="pancake-img" class="loading" /></div>
+      <div id="pancake-div" class="loading">
+        <div class="panel panel-default">
+          <div class="panel-body">
+            <div class="loading-caption">
+              Generating the image, this may take a moment...
+            </div>
+            <div class="progress progress-striped active">
+              <div class="progress-bar"  role="progressbar" aria-valuenow="100" aria-valuemin="100" aria-valuemax="100" style="width: 100%"></div>
+            </div>
+          </div>
+        </div>
+        <img id="pancake-img" class="loading" />
+      </div>
     </div><!-- /container -->
 
     <div class="container mapstarter-section hidden" id="section-download-code">
-      <h3>Download: Code</h3>
+      <h3>Download the code</h3>
       <p>The code below will generate a basic version of your map in a browser. You'll also need to have your data file in the same folder for it to work.  If you started with a shapefile (.zip), make sure you download the data file too - it's now in a different, web-friendly format.  If you started with GeoJSON or TopoJSON, you can use your existing file or re-download it below.</p>
       <p><strong>Download this code:</strong> <a href="#" id="code-download"></a></p>
       <p><strong>Download your data:</strong> <a href="#" id="data-download" class="data-download"></a></p>    

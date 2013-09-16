@@ -41,7 +41,7 @@ span.navbar-brand, .navbar-default .navbar-brand,span.navbar-brand:hover, .navba
   background-image: url('loading-map.gif');
 }
 
-div.hidden {
+.hidden {
   display: none;
 }
 
@@ -61,7 +61,7 @@ div#upload-target:not(.loading):hover {
   background-color: #ccc;
 }
 
-div#upload-target div.progress {
+div#upload-target div#file-loading {
   display: none;
   margin-bottom: 0px;
 }
@@ -70,7 +70,7 @@ div#upload-target.loading div#file-prompt {
   display: none;
 }
 
-div#upload-target.loading div.progress {
+div#upload-target.loading div#file-loading {
   display: block;
 }
 
@@ -196,8 +196,62 @@ pre {
   font-size: 15px;
 }
 
-div#pancake-div.loading {
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-image: url('loading.gif');
+div#pancake-div div {
+  display: none;
+}
+
+div.loading-caption {
+  padding-bottom: 8px;
+  font-weight: bold;
+  color: steelblue;
+}
+
+div#pancake-div.loading div {
+  display: block;
+}
+
+div#pancake-div.loading img {
+  display: none;
+}
+
+table#attributes
+
+table#attributes th {
+  font-weight: bold;
+  text-align: center;
+}
+
+table#attributes tr:hover:not(.deleted) {
+  background-color: #e6e6e6;
+}
+
+table#attributes td {
+  text-align: left;
+}
+
+table#attributes th:last-of-type {  
+  border-color: transparent;
+}
+
+table#attributes tr td:last-of-type {
+  text-align: center;
+  color: steelblue;  
+  font-size: 18px;
+  font-weight: bold;
+  border-color: transparent;
+}
+
+table#attributes td:last-of-type:hover {
+  background-color: steelblue;
+  color: white;
+}
+
+table#attributes td, table#attributes th {  
+  padding: 5px;
+  border: 1px solid #ddd;
+}
+
+table#attributes tr.deleted td:not(:last-of-type) {
+  text-decoration: line-through;
+  color: #999;
 }
