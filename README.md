@@ -42,7 +42,7 @@ Mike Bostock.
 Some details/caveats
 --------------------
 
-To import a shapefile, it must be a .zip file containing a .shp file, .dbf file, and .shx file (it can contain a .prj file too, but that's optional). This conversion process is a bit slow for now but will be faster someday.
+A shapefile is typically composed of several actual files.  To import one, you need to import the .shp file.  Assuming you want to include the attributes (like country names) as part of the map, you'll also need to import the .dbf file.  To import both files at once, you can either select them both (or drag them both onto the target), or you can submit a .zip file that includes both of them.
 
 This will currently only support a single layer of geometries.  If, for example, you have a TopoJSON file with census tracts, counties, and states, all stored separately, it will only draw one of them.  I hope to fix this (see **To do list**).
 
@@ -60,15 +60,14 @@ To do list
 * Option to add data file to a communal library
 * Responsive scaling option for code download
 * Built-in image fallbacks for code download
-* Allow GeoJSON to TopoJSON conversion for code download (this is ready, but not enabled yet)
 * Edit the attribute table
-* Delete or merge features          
-* Add a legend to a chloropleth
-* Support files with multiple geometry layers        
+* Merge features
+* Chloroplething
+* Support files with multiple geometry layers
 * Auto-delete weird features (i.e. tiny islands)
 * Split a feature into its constituent parts and edit in detail.
 * KML importing?  Do people still use KML?
-* Auto-detect appropriate projection based on data bounds
+* Fix Mercator auto-bounds for features that cross the International Date Line
 * Add more projection options?  Do people need to use weird projections?  
 
 Get in touch

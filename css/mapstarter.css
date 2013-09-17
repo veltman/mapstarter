@@ -1,7 +1,7 @@
 /* Reset the container */
 .container {
   max-width: none !important;
-  width: 900px;
+  width: 1040px;
 }
 
 .navbar {
@@ -229,21 +229,22 @@ table#attributes td {
   text-align: left;
 }
 
-table#attributes th:last-of-type {  
+table#attributes th:last-of-type {
   border-color: transparent;
+}
+
+table#attributes th.sortable {  
+  cursor: pointer;
+}
+
+table#attributes th.sortable:hover {  
+  background-color: #e6e6e6;
 }
 
 table#attributes tr td:last-of-type {
-  text-align: center;
-  color: steelblue;  
-  font-size: 18px;
-  font-weight: bold;
+  text-align: left;      
   border-color: transparent;
-}
-
-table#attributes td:last-of-type:hover {
-  background-color: steelblue;
-  color: white;
+  cursor: auto;
 }
 
 table#attributes td, table#attributes th {  
@@ -251,7 +252,162 @@ table#attributes td, table#attributes th {
   border: 1px solid #ddd;
 }
 
+table#attributes td, table#attributes th span.glyphicon {
+  color: #999;
+}
+
+table#attributes td, table#attributes th:hover {
+  color: #333;
+}
+
+table#attributes th.sorted {
+  color: steelblue;
+}
+
+table#attributes th.sorted span.glyphicon {
+  color: steelblue;
+}
+
 table#attributes tr.deleted td:not(:last-of-type) {
   text-decoration: line-through;
   color: #999;
+}
+
+table#attributes tr.deleted td:last-of-type a {
+  color: #999;
+}
+
+table#attributes tr td:last-of-type a span {
+  font-weight: bold;
+}
+
+table#attributes {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.navbar .navbar-nav>li>a {
+  font-weight: bold;
+}
+
+.navbar .navbar-nav>.active>a:hover {
+  color: #000;  
+}
+
+.navbar .navbar-nav>.active>a,.navbar .navbar-nav>.active>a:hover {
+  color: #000;
+  background-color: #dedede;
+}
+
+.btn {
+  display: inline-block;
+  margin: 0px;      
+  font-weight: bold;      
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  cursor: pointer;
+  border: 1px solid transparent;      
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+       -o-user-select: none;
+          user-select: none;
+}
+
+.btn:focus {
+  outline: thin dotted #333;
+  outline: 5px auto -webkit-focus-ring-color;
+  outline-offset: -2px;
+}
+
+.btn:active,
+.btn.active {
+  background-image: none;
+  outline: 0;
+  -webkit-box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+          box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+}
+
+.btn-default {
+  color: #444;
+  background: #ebebeb;
+  border-color: #cccccc;
+}
+
+.btn-default:hover,
+.btn-default:focus,
+.btn-default:active,
+.btn-default.active,
+.open .dropdown-toggle.btn-default {      
+  background-color: #dedede;
+  border-color: #adadad;
+}
+
+.btn-default:active,
+.btn-default.active,
+.open .dropdown-toggle.btn-default {
+  background-image: none;
+}
+
+.btn-group {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.btn-group > .btn {
+  position: relative;
+  float: left;
+}
+
+.btn-group > .btn:hover,    
+.btn-group > .btn:focus,    
+.btn-group > .btn:active,    
+.btn-group > .btn.active {
+  z-index: 2;
+}
+
+.btn-group > .btn:focus {
+  outline: none;
+}
+
+.btn.active {
+  color: #000;
+}
+
+div#file-status-inner > div.progress {
+  margin: 4px 300px;
+  display: none;
+}
+
+div#file-status.loading div#file-status-inner > div {
+  display: none;
+}
+
+div#file-status.loading  div#file-status-inner > div.progress {
+  display: block;
+}
+
+
+div#tooltip {
+  position: absolute;
+  border: 1px solid black;
+  background-color: #fff;
+  padding: 4px 8px;
+  font-weight: bold;
+  text-align: center;
+  font-size: 16px;
+}
+
+@media screen and (max-width: 1040px) {  
+
+  div.container {
+    width: 900px;
+  }
+
+  body:not(.blanked) .navbar-header {
+    display: none;
+  }
+    
 }

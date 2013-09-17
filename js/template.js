@@ -1,4 +1,6 @@
-function generateCode(file,options) {  
+function generateCode(file,options) { 
+
+  console.log(options.zoomMode);
 
   var codeLines = [
         '<!DOCTYPE html>',
@@ -63,11 +65,27 @@ function generateCode(file,options) {
         '',
         '//Group for the map features',
         'var features = svg.append("g")',
-        '    .attr("class","features");',        
+        '    .attr("class","features");'
+    ];
+
+    if (options.zoomMode == "free") {
+        codeLines = codeLines.concat([
+            '',
+            '//Create zoom/pan listener',
+            '//Change [1,Infinity] to adjust the min/max zoom scale',
+            'var zoom = d3.behavior.zoom()',
+            '    .scaleExtent([1, Infinity])',
+            '    .on("zoom",zoomed);',
+            '',
+            'svg.call(zoom);'
+        ]);
+    }
+
+    codeLines = codeLines.concat([
         '',
-        function() { if (options.clickToZoom) return '//Keeps track of currently zoomed feature'; return null; },
-        function() { if (options.clickToZoom) return 'var centered;'; return null; },
-        function() { if (options.clickToZoom) return ''; return null; },,
+        function() { if (options.zoomMode == "feature") return '//Keeps track of currently zoomed feature'; return null; },
+        function() { if (options.zoomMode == "feature") return 'var centered;'; return null; },
+        function() { if (options.zoomMode == "feature") return ''; return null; },
         'd3.json("'+file.name+'",function(error,geodata) {',
         '  if (error) return console.log(error); //unknown error, check the console',
         '',
@@ -91,14 +109,14 @@ function generateCode(file,options) {
         //'    .on("mouseover",mousedover)';
         //'    .on("mouseover",mousedout);';
         '',
-        '});',
-        ''
-    ];
+        '});'
+    ]);
 
 
-    if (options.clickToZoom) {
+    if (options.zoomMode == "feature") {
 
         codeLines = codeLines.concat([
+                '',
                 '// Zoom to feature on click',                
                 'function clicked(d,i) {',
                 '',
@@ -129,15 +147,17 @@ function generateCode(file,options) {
                 function() { if (options.strokeWidth) return '      .style("stroke-width", '+options.strokeWidth+' / k + "px"); // Keep the border width constant'; return null; },
                 '',
                 '  //Zoom and re-center the map',
+                '  //Remove .transition() and .duration() to make zoom instant',
                 '  features',
-                '      .transition() // Smooth zooming, remove this line to make zoom instant (improves performance)',
-                '      .duration(500)  // Smooth zooming, remove this line to make zoom instant (improves performance)',
+                '      .transition()',
+                '      .duration(500)',
                 '      .attr("transform","translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")");',
                 '}',
                 ''
             ]);
     } else {
         codeLines = codeLines.concat([
+                '',
                 '// Add optional onClick events for features here',      
                 '// d.properties contains the attributes (e.g. d.properties.name, d.properties.population)',
                 'function clicked(d,i) {',
@@ -145,47 +165,22 @@ function generateCode(file,options) {
                 '}',
                 ''
             ]);
+
+        if (options.zoomMode == "free") {
+            codeLines = codeLines.concat([
+                '',
+                '//Update map on zoom/pan',
+                'function zoomed() {',
+                '  features.attr("transform", "translate(" + zoom.translate() + ")scale(" + zoom.scale() + ")");',
+                '  paths.attr("stroke-width", '+options.strokeWidth+' / zoom.scale() + "px" );',
+                '}',
+                ''                
+            ]);
+        }
     }           
 
     if (options.responsive) {
-        /*
-        codeLines = codeLines.concat([
-                '//Resize the map when the window resizes',
-                'function resized() {',
-                '',
-                '  var x, y, k;',
-                '',
-                '  if (d && centered !== d) {',
-                '    //Compute the new map center and scale to zoom to',
-                '    var centroid = path.centroid(d);',
-                '    var b = path.bounds(d);',
-                '    x = centroid[0];',
-                '    y = centroid[1];',
-                '    k = .8 / Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height);',
-                '    centered = d',                
-                '  } else {',
-                '    x = width / 2;',
-                '    y = height / 2;',
-                '    k = 1;',
-                '    centered = null;',
-                '  }',
-                '',
-                '  //Highlight the new feature',
-                '  features.selectAll("path")',
-                '      .classed("highlighted",function(d) {',
-                '          return d === centered;',
-                function() { return '      })'+(options.strokeWidth ? '' : ';' ); },
-                function() { if (options.strokeWidth) return '      .style("stroke-width", '+options.strokeWidth+' / k + "px"); //Scale the border thickness so it stays constant'; return null; },
-                '',
-                '  //Zoom and re-center the map',
-                '  features',
-                '      .transition() //smooth zooming, remove this line to make zoom instant (improves performance)',
-                '      .duration(500)  //smooth zooming, remove this line to make zoom instant (improves performance)',
-                '      .attr("transform","translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")");',
-                '}',
-                ''
-            ]);
-        */
+        //Add this later
     }    
 
     codeLines.push('</script>');    

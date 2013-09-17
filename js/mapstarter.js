@@ -4,14 +4,15 @@ var currentHash = null;
 //Initialize vars for selectors. Mixing D3 & jQuery... what could go wrong??
 var mapBox,
   map,
-  draggable,
   features,
   paths,
   upload,
   attributesHeader,        
   attributesBody,
   code,
-  attributesColumns, attributesRows;
+  fileStatus,
+  attributesTable, attributesColumns, attributesRows, noAttributes,
+  attributesSortColumn, attributesSortDir = -1;
 
 //Need this as jQuery for now, D3 click simulation for upload not working
 var $uploadFile,
@@ -36,62 +37,44 @@ var mapOptions = {
   strokeWidth: 1,
   stroke: "white",
   fill: "steelblue",
-  highlight: "tomato",
-  dragToPan: false,
-  clickToZoom: true,
+  highlight: "tomato",  
+  zoomMode: "feature",
   responsive: false,
-  tooltip: false  
+  tooltip: "name"
 };
 
 //Currently centered feature, for zoom purposes
 var centered;
 
 //Dragging variables, currently disabled
-/*
-var dragX,
-  dragY,
-  dragBounds,
-  dragging = false,
-  drag = d3.behavior.drag().on("drag", function() {
 
-    //Disable this for now
-    return true;
-
-    dragging = true;
-    
-    if (!mapOptions.dragToPan) return true;
-
-    d3.event.sourceEvent.stopPropagation();
-    
-    dragX += d3.event.dx;
-    dragY += d3.event.dy;
-
-    draggable.attr("transform", "translate(" + [ dragX,dragY ] + ")");
-    
-  }).on("dragend", function() {
-
-      dragging = false;
-
-  });
-*/
+var freeZoom = d3.behavior.zoom().scaleExtent([1, Infinity])
+    .on("zoom", function() {
+      if (mapOptions.zoomMode == "free") {
+        zoomed();
+      }      
+    });
 
 $(document).ready(function() {
 
   mapBox = d3.select("div#map-box");
   map = d3.select("svg#map");
-  draggable = map.select("g#draggable");
   features = map.select("g#features");
   paths = features.selectAll("path");
   upload = d3.select("div#upload-target");
-  attributesHeader = d3.select("table#attributes thead");
-  attributesBody = d3.select("table#attributes tbody");
-  code = d3.select("code#download-code");    
+  fileStatus = d3.select("div#file-status");
+  noAttributes = d3.select("div#no-attributes");
+  attributesTable = d3.select("table#attributes");
+  attributesHeader = attributesTable.select("thead");
+  attributesBody = attributesTable.select("tbody");
+  tooltip = d3.select("div#tooltip");
+  code = d3.select("code#download-code");   
 
   $uploadFile = $("#upload-file");
   $body = $("body");
   $alert = $("div.alert:first");
 
-  //map.call(drag);
+  map.call(freeZoom);
 
   //Handlers for the upload target
   upload.on("dragenter",noop);
@@ -104,9 +87,9 @@ $(document).ready(function() {
   //When a user drops a file, attempt to read it
   upload.on("drop",function() {               
     noop();
-    if (upload.classed("loading")) return true;
+    if (upload.classed("loading") || fileStatus.classed("loading")) return true;
     if (d3.event.dataTransfer.files.length) {
-      readFile(d3.event.dataTransfer.files[0]);
+      readFiles(d3.event.dataTransfer.files);      
     } else {
       msg("No drag-and-drop file detected.",false);
     }
@@ -120,14 +103,14 @@ $(document).ready(function() {
   });
 
   //Clicking the drag target instead triggers a <hidden input type="file">
-  upload.on("click",function() {       
-    if (!upload.classed("loading")) $uploadFile.click();
+  upload.on("click",function() {    
+    if (!upload.classed("loading") && !fileStatus.classed("loading")) $uploadFile.click();
   });
 
   //When that input changes, attempt to read the file
   $uploadFile.on("change",function() {
-    if ($(this)[0].files.length) {          
-      readFile($(this)[0].files[0]);
+    if ($(this)[0].files.length) {      
+      readFiles($(this)[0].files);      
     }
   });      
 
@@ -138,13 +121,11 @@ $(document).ready(function() {
   });
 
   $("input#color-stroke").change(function(){        
-    mapOptions.stroke = $(this).val();
-    console.log(mapOptions);    
+    mapOptions.stroke = $(this).val();    
     paths.attr("stroke",mapOptions.stroke);    
   });
 
-  $("input#color-highlight").change(function(){
-    console.log("changed");
+  $("input#color-highlight").change(function(){    
     mapOptions.highlight = $(this).val();
   });
 
@@ -179,18 +160,9 @@ $(document).ready(function() {
     mapOptions.responsive = $(this).is(':checked');
   });
 
-  $("input#pannable").change(function() {
-    
-    mapOptions.dragToPan = $(this).is(':checked');
+  $("input[name='zoom']").change(function() {
+    mapOptions.zoomMode = $(this).val();
     resetMap();
-
-  });
-
-  $("input#zoomable").change(function() {
-    
-    mapOptions.clickToZoom = $(this).is(':checked');
-    resetMap();
-
   });
 
   $("button.map-update").click(function() {
@@ -198,8 +170,42 @@ $(document).ready(function() {
   });
 
   $("li#choose-file a").click(function() {
-    if (!upload.classed("loading")) $uploadFile.click();
+    if (!upload.classed("loading") && !fileStatus.classed("loading")) $uploadFile.click();
   });
+
+  $("a.switch-type").click(function() {
+    if (!upload.classed("loading") && !fileStatus.classed("loading")) {
+      
+      fileStatus.classed("loading",true);          
+
+      var to = $(this).data("switch");
+
+      if (to == "geojson") {
+        setFileType(to);
+      } else if (to == "topojson") {
+        
+        if (currentFile.data.topo) {
+          setFileType(to);
+        } else {          
+          $.post("geo-to-topo.php",{geojson: JSON.stringify(currentFile.data.geo)},function(topo) {
+            currentFile.data.topo = topo;
+            setFileType(to);
+          },"json");
+          //submit for conversion here
+        }
+      
+      }
+    }
+
+    return false;
+  });
+
+  /*features.on("mouseover",function() {
+    tooltip.classed("hidden",!mapOptions.tooltip);
+  })
+  .on("mouseout",function() {
+    tooltip.attr("class","hidden");
+  });*/
 
   //Process sample data links
   $("a.sample-data").click(function() {      
@@ -219,22 +225,43 @@ $(document).ready(function() {
     
     d3.json("samples/"+fn,function(error,newFile) {          
       loaded(newFile);
-    });        
+    });
 
     return false;
   });
-
-  $("a.help-tooltip").tooltip();
 
   initHashNav(processHash);
 
 });
 
-//Read in a user-inputted file
-function readFile(file) {
+//Extra wrapper function to allow for shapefiles to be uploaded as multiple files
+function readFiles(files) {
 
+  $alert.addClass("hidden");
   upload.classed("loading",true);
   $body.addClass("blanked");
+
+  if (files.length == 1) {
+    readFile(files[0]);
+  } else {
+    var shp = [], dbf = [];
+
+    for (var i = 0; i < files.length; i++) {
+      if (files[i].name.match(/[.]shp$/i)) shp.push(files[i]);
+      else if (files[i].name.match(/[.]dbf$/i)) dbf.push(files[i]);
+    }
+
+    if (shp.length == 1 && dbf.length <= 1) {      
+      tryMultiShapefile(shp[0],dbf[0]);
+    } else {
+      msg("Not a valid file.  Shapefiles must be submitted one of three ways: 1) a .shp file, 2) a .shp and a .dbf file together, 3) a .zip file containing a .shp and .dbf file.",false);
+      return false;
+    }
+  }
+}
+
+//Read in a user-inputted file
+function readFile(file) {
 
   var newFile = {name: file.name, size: file.size, data: {topo: null, geo: null}, type: null};
 
@@ -262,7 +289,7 @@ function readFile(file) {
                 
     } catch(err) {  
       console.log(err);       
-      tryShapefile(file);                      
+      trySingleShapefile(file);                      
       return false;            
     }                  
     
@@ -275,25 +302,54 @@ function readFile(file) {
 
 }      
 
-//Try file as a zipped shapefile
-function tryShapefile(file) {
-
-  //ADC's converter requires .zip extension
-  if (file.name.match(/[.]zip$/)) {
+//Try file as a .shp file and a .dbf file
+function tryMultiShapefile(shp,dbf) {
 
     //Create form with file upload
     var formData = new FormData();
-    formData.append('shapefile', file);
+    formData.append('shp', shp);
+    if (dbf) formData.append('dbf', dbf);
+
+
+    //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
+    d3.xhr("shp-to-geo.php").post(formData,function(error,response) {                
+
+      try {
+        var newFile = {name: shp.name.replace(/[.]shp$/i,".geojson"), size: response.responseText.length, data: {topo: null, geo: fixGeo(JSON.parse(response.responseText))}, type: "geojson"};
+      } catch(err) {
+        if (currentFile.name) $body.removeClass("blanked");
+        msg("Not a valid file.  Shapefiles must be submitted one of three ways: 1) a .shp file, 2) a .shp and a .dbf file together, 3) a .zip file containing a .shp and .dbf file.",false);
+        return false;
+      }
+
+      loaded(newFile);
+
+      return true;
+
+
+    });
+
+}
+
+
+//Try file as a zipped shapefile
+function trySingleShapefile(file) {
+
+  //Require .zip extension
+  if (file.name.match(/[.](zip|shp)$/i)) {
+
+    //Create form with file upload
+    var formData = new FormData();
+    formData.append(file.name.substring(file.name.length-3).toLowerCase(), file);
 
 
     //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
     d3.xhr("shp-to-geo.php").post(formData,function(error,response) {          
-
       try {
-        var newFile = {name: file.name.replace(/[.]zip$/i,".geojson"), size: response.responseText.length, data: {topo: null, geo: fixGeo(JSON.parse(response.responseText))}, type: "geojson"};              
+        var newFile = {name: file.name.replace(/[.](shp|zip)$/i,".geojson"), size: response.responseText.length, data: {topo: null, geo: fixGeo(JSON.parse(response.responseText))}, type: "geojson"};              
       } catch(err) {
         if (currentFile.name) $body.removeClass("blanked");
-        msg("Not a valid file.  Shapefiles must be submitted as a .zip file including a .shp, .dbf, and .shx file, and be under 15 MB.",false);
+        msg("Not a valid file.  Shapefiles must be submitted one of three ways: 1) a .shp file, 2) a .shp and a .dbf file together, 3) a .zip file containing a .shp and .dbf file.",false);
         return false;
       }
 
@@ -306,9 +362,37 @@ function tryShapefile(file) {
 
   } else {
     if (currentFile.name) $body.removeClass("blanked");
-    msg("Not a valid file.  Shapefiles must be .zip files including a .shp, .dbf, and .shx file, and be under 15 MB.",false);
+    msg("Not a valid file.  Shapefiles must be submitted one of three ways: 1) a .shp file, 2) a .shp and a .dbf file together, 3) a .zip file containing a .shp and .dbf file.",false);
 
   }
+}
+
+function setFileType(to) {
+  code.text("");
+
+  currentFile.name = currentFile.name.replace(/[.](topo|geo)?json/,'')+"."+to;
+  currentFile.size = JSON.stringify(to == "geojson" ? currentFile.data.geo : currentFile.data.topo).length;
+
+  $("span.filesize").html("("+prettySize(currentFile.size)+")");
+
+  $("a.switch-type").html("Switch to "+(to == "geojson" ? "TopoJSON" : "GeoJSON")).data("switch",(to == "geojson" ? "topojson" : "geojson"));
+
+  currentFile.type = to;
+
+  var filebase = currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"");
+
+  var codeContents = generateCode(currentFile,mapOptions);
+
+  code.text(codeContents);
+
+  $("a.data-download").attr("download",currentFile.name).html(currentFile.name).attr("href",window.URL.createObjectURL(new Blob([JSON.stringify(filterFeatures((currentFile.type == "topojson") ? currentFile.data.topo : currentFile.data.geo, currentFile.type, currentFile.skip))], { "type" : "application/json" })));
+
+  $("a#code-download").attr("download",filebase+".html").html(filebase+".html").attr("href",window.URL.createObjectURL(new Blob([codeContents], { "type" : "text/html" })));      
+  
+  hljs.highlightBlock(code.node());
+
+  fileStatus.classed("loading",false);
+
 }
 
 //Process newly loaded data
@@ -330,8 +414,10 @@ function loaded(newFile) {
         $("select#input-projection").val("mercator");
       }
 
-      //Update current file display
-      $("#file-status-inner").removeClass("hidden").html("Current File: <a href=\"#\" class=\"filename data-download\">"+currentFile.name+"</a> <span class=\"filesize\">("+prettySize(currentFile.size)+")</span>",true);           
+      $("span.filesize").html("("+prettySize(currentFile.size)+")");
+      $("a.switch-type").html("Switch to "+(currentFile.type == "topojson" ? "GeoJSON" : "TopoJSON")).data("switch",(currentFile.type == "topojson" ? "geojson" : "topojson"));
+
+      $("#file-status-inner").removeClass("hidden");
       
       //Set download links
       $("a.data-download").attr("download",currentFile.name).html(currentFile.name).attr("href",window.URL.createObjectURL(new Blob([JSON.stringify((currentFile.type == "topojson") ? currentFile.data.topo : currentFile.data.geo)], { "type" : "application/json" })));
@@ -350,12 +436,8 @@ function loaded(newFile) {
         return 0; 
       });
 
-      //Populate the attribute table
-      attributesHeader.selectAll("th").remove();
-      attributesHeader.selectAll("th").data(attributesColumns).enter().append("th").text(function(d){return d;});
-      
-      //For deletion
-      attributesHeader.append("th").text("");
+      attributesTable.classed("hidden",!attributesColumns.length);
+      noAttributes.classed("hidden",attributesColumns.length);
 
       attributesBody.selectAll("tr").remove();
       attributesRows = attributesBody.selectAll("tr").data(f).enter().append("tr")
@@ -382,31 +464,53 @@ function loaded(newFile) {
           });
       });
 
+      //Populate the attribute table
+      attributesHeader.selectAll("th").remove();
+      attributesHeader.selectAll("th").data(attributesColumns).enter().append("th")
+        .attr("class","sortable")
+        .html(function(d){return '<span class="glyphicon glyphicon-sort"></span>&nbsp;'+d;})
+        .on("click",function(d,i) {          
+          attributesHeader.select("th.sorted").classed("sorted",false).select("span").attr("class","glyphicon glyphicon-sort");
+          d3.select(this).classed("sorted",true).select("span").attr("class","glyphicon glyphicon-sort-by-attributes"+(attributesSortDir > 0 ? "-alt" : ""));
+          sortAttributeRows(attributesColumns[i],-attributesSortDir);
+        });
+      
       //For deletion
-      attributesRows.append("td")
+      attributesHeader.append("th").text("");
+
+      //For deletion
+      var deletes = attributesRows.append("td")
           .attr("class","attribute-delete")
+          .on("click",function() {
+            d3.event.stopPropagation();            
+          });
+
+      deletes.append("a")
+          //.attr("class","btn btn-default")          
+          .attr("href","#")
           .on("click",function(d,i) {            
             d3.event.stopPropagation();
+            d3.event.preventDefault();
 
             var isDeleted = d3.select("tr#tr"+i).classed("deleted");            
             if (isDeleted) {
-              d3.select(this).html("&times;").attr("title","Delete this feature");
+              d3.select(this).html('<span>&times;</span> Remove').attr("title","Remove this feature");              
               if (currentFile.skip.indexOf(i) != -1) currentFile.skip = currentFile.skip.splice(currentFile.skip.indexOf(i),1);
             } else {
-              d3.select(this).text("+").attr("title","Undelete this feature");              
+              d3.select(this).html('<span>+</span> Restore').attr("title","Restore this feature");              
               if (currentFile.skip.indexOf(i) == -1) currentFile.skip.push(i);
             }
             
             attributesBody.select("tr#tr"+i).classed("deleted",!isDeleted);
-            map.select("path#path"+i).classed("hidden",!isDeleted);            
+            map.select("path#path"+i).style("display",isDeleted ? "block" : "none");  
 
-            var data = filterFeatures((currentFile.type == "topojson") ? currentFile.data.topo : currentFile.data.geo, currentFile.type, currentFile.skip);
+            $("a.data-download").attr("download",currentFile.name).html(currentFile.name).attr("href",window.URL.createObjectURL(new Blob([JSON.stringify(filterFeatures((currentFile.type == "topojson") ? currentFile.data.topo : currentFile.data.geo, currentFile.type, currentFile.skip))], { "type" : "application/json" })));
+            scaleMap();
 
-            $("a.data-download").attr("download",currentFile.name).html(currentFile.name).attr("href",window.URL.createObjectURL(new Blob([JSON.stringify(data)], { "type" : "application/json" })));
-
+            return false;
           })
           .attr("title","Delete this feature")
-          .html("&times;");
+          .html('<span>&times;</span> Remove');
 
       paths.remove();
 
@@ -420,18 +524,26 @@ function loaded(newFile) {
         })
         .on("click",clicked)
         .on("mouseover",function(d,i) {            
-          
+          console.log("mouseover");
           var p = d3.select(this);
           p.attr("fill",mapOptions.highlight);
           if (currentHash == "data") d3.select("tr#tr"+i).style("background-color","#e6e6e6");
+
+          if (mapOptions.tooltip) {            
+            tooltip.text(d.properties[mapOptions.tooltip]).style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px").attr("class","");
+          }
+        })
+        .on("mousemove",function(d,i) {
+          console.log("mousemove");
+          tooltip.style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px");
         })
         .on("mouseout",function(d,i) {
-
+          console.log("mouseout");
           var p = d3.select(this);
           if (!p.classed("clicked")) p.attr("fill",mapOptions.fill);
           if (currentHash == "data") d3.select("tr#tr"+i).style("background-color","#fff");
-
-      });      
+          tooltip.text("").attr("class","hidden");
+      });
 
       //Draw the map
       scaleMap();      
@@ -470,14 +582,11 @@ function scaleMap() {
     .style("height",mapOptions.height+"px");
 
   //Update the projection to center and fit in the provided box
-  updateProjection(currentFile.data.geo,mapOptions.width,mapOptions.height);
+  updateProjection(filterFeatures(currentFile.data.geo,"geojson",currentFile.skip),mapOptions.width,mapOptions.height);
 }
 
 //Remove any applied transforms
 function resetMap() {
-
-  draggable.attr("transform",null);
-  //dragX = 0, dragY = 0;
   
   paths.classed("clicked", false)
     .attr("fill",mapOptions.fill)
@@ -556,8 +665,8 @@ function updateProjection(data,width,height) {
 }
 
 //Zooming to a feature
-function clicked(d) {  
-  if (!mapOptions.clickToZoom) return true;
+function clicked(d) {    
+  if (mapOptions.zoomMode != "feature") return true;
   
   var x, y, k;
 
@@ -589,12 +698,17 @@ function clicked(d) {
       .attr("transform", "translate(" + mapOptions.width / 2 + "," + mapOptions.height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")");
 }
 
+function zoomed() {
+  features.attr("transform", "translate(" + freeZoom.translate() + ")scale(" + freeZoom.scale() + ")");
+  paths.attr("stroke-width",mapOptions.strokeWidth/freeZoom.scale() + "px" );  
+}
+
 //Based on map options, loop through features and generate SVG markup with styles
 function getSVG() {
   var svg = '<?xml version="1.0" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg width="'+mapOptions.width+'" height="'+mapOptions.height+'" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
 
-  currentFile.data.geo.features.forEach(function(d) {
-    svg += '<path stroke-width="'+mapOptions.strokeWidth+'" stroke="'+mapOptions.stroke+'" fill="'+mapOptions.fill+'" d="'+mapOptions.path(d)+'" />';
+  currentFile.data.geo.features.forEach(function(d,i) {
+    if (!currentFile.skip || currentFile.skip.indexOf(i) == -1) svg += '<path stroke-width="'+mapOptions.strokeWidth+'" stroke="'+mapOptions.stroke+'" fill="'+mapOptions.fill+'" d="'+mapOptions.path(d)+'" />';
   });
 
   svg += '</svg>';
@@ -692,9 +806,7 @@ function showSection(section) {
 
       return true;
     }
-
-    mapBox.classed("hidden",true);
-
+  
     if (section == "download-image") {            
 
       $("div#pancake-div").addClass("loading");
@@ -710,11 +822,9 @@ function showSection(section) {
 
     }
 
-    if (section == "choose-file") $("div#section-help").removeClass("hidden");
-
-  } else {
-    mapBox.classed("hidden",false);
   }
+    
+  mapBox.classed("hidden",section.match(/^(download-image|choose-file|help)$/));
 }
 
 //Attempt to detect a US map including AK and HI, switch to albersUsa
@@ -726,13 +836,14 @@ function isUSA(data) {
 
 }
 
-function filterFeatures(data,type,skip) {
+//Filter features for file download links, removing features that are marked as removed in the "Data" tab
+function filterFeatures(data,type,skip) {  
   var newData = $.extend(true,{},data);
+  if (!skip || !skip.length) return newData;
 
-  console.log(data.features.length);
   if (type == "topojson") {
-    var o = getObjectName(data);
-    newData.objects[o] = newData.objects[o].map(function(d,i) {
+    var o = getObjectName(data);    
+    newData.objects[o].geometries = newData.objects[o].geometries.map(function(d,i) {
       return (skip.indexOf(i) == -1) ? d : null;
     }).filter(function(d) {
       return d !== null;
@@ -745,7 +856,66 @@ function filterFeatures(data,type,skip) {
       return d !== null;
     });
   }
-  console.log(data.features.length);
   
   return newData;
+}
+
+// Sort the attribute rows.  Stringify any deep objects/arrays, treat numbers as numbers,
+// otherwise sort in lexicographic order, putting empty cells last
+function sortAttributeRows(column,direction) {
+  attributesSortColumn = column;
+  attributesSortDir = direction;
+
+  var data = attributesRows.data;
+  var sorted = [];  
+
+  var numeric = true;
+
+  attributesRows.data().forEach(function(d,i) {
+    if (numeric && d.properties[column] && typeof d.properties[column] !== "number") {
+      numeric = false;
+    }
+
+    sorted.push({index: i, data: d});    
+
+  });
+
+  //Do numeric sort if all numbers, otherwise lexicographic
+  if (numeric) sorted.sort(function(a,b) {
+    if (direction > 0) {
+      var s1 = a.data.properties[column], s2 = b.data.properties[column];
+    } else {
+      var s1 = b.data.properties[column], s2 = a.data.properties[column];
+    }
+    if (typeof s1 !== "number") return 1;
+    if (typeof s2 !== "number") return -1;    
+    
+    s1 = parseFloat(s1);
+    s2 = parseFloat(s2);
+
+    if (s1 < s2) return -1;
+    if (s2 < s1) return 1;
+    return 0;    
+  });
+  else sorted.sort(function(a,b) {
+    if (direction > 0) {
+      var s1 = a.data.properties[column], s2 = b.data.properties[column];
+    } else {
+      var s1 = b.data.properties[column], s2 = a.data.properties[column];
+    }
+
+    if (!s1) return 1;
+    if (!s2) return -1;
+
+    if (typeof s1 !== "string") s1 = JSON.stringify(s1);
+    if (typeof s2 !== "string") s2 = JSON.stringify(s2);
+
+    if (s1 < s2) return -1;
+    if (s2 < s1) return 1;
+    return 0;    
+  });
+
+  sorted.forEach(function(r) {    
+    $("tr#tr"+r.index).appendTo(attributesBody.node());
+  });
 }

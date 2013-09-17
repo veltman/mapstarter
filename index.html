@@ -27,35 +27,42 @@
         </div>
         <div>
           <ul class="nav navbar-nav">
-            <li class="active" id="choose-file"><a href="#choose-file">Choose File...</a></li>
-            <li id="size"><a href="#size">Size/Projection</a></li>
-            <li id="color"><a href="#color">Colors</a></li>
-            <li id="behavior"><a href="#behavior">Behavior</a></li>
-            <li id="data"><a href="#data">Data</a></li>
+            <li class="active" id="choose-file"><a href="#choose-file"><span class="glyphicon glyphicon-folder-open"></span>&nbsp;&nbsp;Choose File...</a></li>
+            <li id="size"><a href="#size"><span class="glyphicon glyphicon-resize-full"></span>&nbsp;Size/Projection</a></li>
+            <li id="color"><a href="#color"><span class="glyphicon glyphicon-tint"></span>&nbsp;Colors</a></li>
+            <li id="behavior"><a href="#behavior"><span class="glyphicon glyphicon-cog"></span>&nbsp;Behavior</a></li>
+            <li id="data"><a href="#data"><span class="glyphicon glyphicon-list-alt"></span>&nbsp;Data</a></li>
             <li class="dropdown" id="download">
-              <a href="#" class="dropdown-toggle" data-toggle="dropdown">Download <b class="caret"></b></a>
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown"><span class="glyphicon glyphicon-download-alt"></span>&nbsp;Download <b class="caret"></b></a>
               <ul class="dropdown-menu">
                 <li id="download-svg"><a href="#download-svg">SVG</a></li>
                 <li id="download-image"><a href="#download-image">Image</a></li>
                 <li id="download-code"><a href="#download-code">Code</a></li>
               </ul>
             </li>            
-            <li><a href="#help" id="help">Help</a></li>            
+            <li><a href="#help" id="help"><span class="glyphicon glyphicon-question-sign"></span>&nbsp;Help</a></li>            
           </ul>
         </div>
       </div>
-      <div id="file-status"><div class="container text-center" id="file-status-inner"></div></div>
+      <div id="file-status">
+        <div class="container text-center btn-group-sm hidden" id="file-status-inner">
+          <div>Current File: <a href="#" class="filename data-download"></a>&nbsp;<span class="filesize"></span>&nbsp;&nbsp;&nbsp;<small><a href="#" class="switch-type"></a></small></div>
+          <div class="progress progress-striped active text-center">
+            <div class="progress-bar" role="progressbar" aria-valuenow="100" aria-valuemin="100" aria-valuemax="100" style="width: 100%;"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="container">    
       <div class="alert alert-dismissable hidden"><button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button><div class="alert-inner"></div></div>
     </div>
-
-    <div class="container mapstarter-section unblankable" id="section-choose-file">      
+    
+    <div class="container mapstarter-section unblankable" id="section-choose-file">            
       <div class="panel panel-default" id="upload-target">
-        <div class="panel-body">
+        <div class="panel-body" style="position: relative;">          
           <div id="file-prompt">
-            Drag a shapefile, GeoJSON, or TopoJSON file here, or click to select one
+            <div>Drag a shapefile, GeoJSON, or TopoJSON file here, or click to select one</div>            
           </div>
           <div id="file-loading">
             <div class="loading-caption">
@@ -68,7 +75,7 @@
           </div>
         </div>
       </div>
-      <input type="file" id="upload-file" style="display: none;" />
+      <input type="file" id="upload-file" style="display: none;" multiple />
       <div>
         <strong>or try a sample file:</strong>
         <a href="#sample-data" data-filename="ca.json" class="sample-data">CA congressional districts</a>        
@@ -77,9 +84,87 @@
         <a href="#sample-data" data-filename="southamerica.json" class="sample-data">South America</a>
         <a href="#sample-data" data-filename="us-states.json" class="sample-data">US states</a>
         <a href="#sample-data" data-filename="random" class="sample-data">Random country</a>
-      </div>
-    </div><!-- /container -->
+      </div>      
+    
+      <h4><strong>Mapstarter is a tool for turning a geographic data file into a map for the web.</strong></h4>
+      <p>This is a work in progress.  Got ideas?  Requests?  Complaints?  Data files that didn't work?  <a href="mailto:noah@noahveltman.com">Let me know</a>.</p>
+      <h4>How does it work?</h4>
+      <p>Select a GeoJSON file, TopoJSON file, or ESRI Shapefile.  It will import your data and give you a starting interactive map, automatically scaled to fit your data.  You can change the dimensions, map projection, color scheme, and add basic behaviors like zoom and tooltips. You can also inspect the data stored in your file in the "Data" tab.</p>
 
+      <p>Once you've got something you like, you can export it in one of three formats:</p>      
+      <ul>
+        <li><strong>SVG</strong>: useful if you want a starting template to further customize as a flat graphic (e.g. in Adobe Illustrator).</li>
+        <li><strong>Image</strong>: useful if you want an instant flat image of your map.</li>
+        <li><strong>Code</strong>: useful if you're a web developer or have access to one, and you want to put this up on the web in an interactive form.  You'll get a basic working page with the JavaScript to generate your map, which you can then go trick out with extra cleverness.</li>
+      </ul>
+
+      <p>The assumption is that most webmaps have a lot in common, and even if you want to add bells and whistles, the first 20% of the project is the same.  This aims to speed that up.</p>
+
+      <h4>Who is this for?</h4>
+      <p><strong>Designers</strong> who want to get a headstart on a custom map they're going to work on in graphics software.</p>
+      <p><strong>Reporters</strong> who want to get a quick idea of what's actually in a data file and how an interactive web map approach would look.</p>
+      <p><strong>Web developers</strong> who want to get a sensible starting template without a copy/paste scavenger hunt or a dozen syntax errors.</p>
+
+      <h4>Who is this NOT for?</h4>
+      <p>People who want to edit their geodata.  This currently doesn't have any editing features, it assumes your data is pretty much ready to go. See <strong>Other tools and resources</strong> below for some tools for this.</p>
+      <p>People who want to make Google Maps-style tile maps that you can slip and slide around.  This is meant for more focused maps that ignore the world at large.  Think election maps.  See <strong>Other tools and resources</strong> below for some tools for tile maps.</p>
+      <p>People who want to make complex, multilayered, or heavily stylized maps.  This may still provide a useful starting point for that, but it's not going to get you very far.</p>
+      <p>Mike Bostock.</p>
+
+      <h4>Some details/caveats</h4>     
+      <p>A shapefile is typically composed of several actual files.  To import one, you need to import the .shp file.  Assuming you want to include the attributes (like country names) as part of the map, you'll also need to import the .dbf file.  To import both files at once, you can either select them both (or drag them both onto the target), or you can submit a .zip file that includes both of them.</p>
+      <p>This will currently only support a single layer of geometries.  If, for example, you have a TopoJSON file with census tracts, counties, and states, all stored separately, it will only draw one of them.  I hope to fix this (see <strong>To do list</strong>).</p>
+      <p>If you download the code for your map, it will rely on <a href="http://d3js.org/">D3</a> for most of the heavy lifting.  D3 is not compatible with IE8 and below, so if you need to serve old browsers, make sure you include an image fallback of some sort.</p>
+      <p>If you already have GeoJSON/TopoJSON, you can run this without an internet connection.  The only pieces that require an internet connection are importing a shapefile, which currently uses the <a href="http://ogre.adc4gis.com/">ADC ogr2ogr converter</a>, and converting from GeoJSON to TopoJSON.  If you want to run it locally, you can clone the <a href="https://github.com/veltman/mapstarter">GitHub repository</a> and open index.html.</p>
+      <p>This will only work on modern browsers, and I wouldn't recommend using it on your smartphone.</p>
+
+      <h4>To do list</h4>
+      <ul>        
+        <li>Save a map to work on it later</li>
+        <li>Option to add data file to a communal library</li>
+        <li>Responsive scaling option for code download</li>
+        <li>Built-in image fallbacks for code download</li>
+        <li>Allow GeoJSON to TopoJSON conversion for code download (this is ready, but not enabled yet)</li>
+        <li>Edit the attribute table</li>
+        <li>Delete or merge features</li>          
+        <li>Add a legend to a chloropleth</li>
+        <li>Support files with multiple geometry layers</li>        
+        <li>Auto-delete weird features (i.e. tiny islands)</li>
+        <li>Split a feature into its constituent parts and edit in detail.</li>
+        <li>KML importing?  Do people still use KML?</li>          
+      </ul>      
+
+      <h4>Get in touch</h4>
+      <p>
+        The source is on Github: <a href="https://github.com/veltman/mapstarter">https://github.com/veltman/mapstarter</a>
+      </p>
+      <p>
+        You can email me at <a href="mailto:noah@noahveltman.com">noah@noahveltman.com</a>, or if you can keep it short, I'm <a href="https://twitter.com/veltman">@veltman</a> on Twitter.
+      </p>   
+
+      <h4>Appendix: other tools and resources</h4>
+      <ul>
+        <li>If you're just generally map-curious, I wrote a <a href="https://github.com/veltman/learninglunches/tree/master/maps">broad overview on geodata and web maps</a>.</li>
+        <li>If you want to make a few basic edits to your underlying data, <a href="http://geojson.io/">geojson.io</a> is pretty handy.  If you want to do more in-depth editing, you'll need desktop software. The fancy and very expensive option is <a href="http://www.esri.com/software/arcgis">ArcGIS</a>; I recommend <a href="http://www.qgis.org/">QGIS</a>, which is free, probably does everything you need, and is more beginner-friendly than you might think.</li>
+        <li>To convert a shapefile to GeoJSON, you can use ADC's <a href="http://ogre.adc4gis.com/">online converter</a>.</li>
+        <li>If you're a coder or code-curious and have some JavaScript under your belt, Mike Bostock has a great <a href="http://bost.ocks.org/mike/map/">detailed walkthrough</a> that introduces you to many of the fundamentals of mapping with D3.  You can also consult the <a href="https://github.com/mbostock/d3/wiki/Gallery#maps">bountiful list of examples</a>.  I'd probably start with <a href="http://bl.ocks.org/mbostock/4060606">this one</a>.
+        </li>
+        <li>If you want to make a slippy, Google Maps-style tile map, I highly recommend <a href="http://leafletjs.com/">Leaflet</a>.  It's delightful.  Another option is <a href="http://modestmaps.com/">Modest Maps</a>.</li>
+        <li>Shan Carter has a <a href="http://shancarter.github.io/distillery/">nice tool for converting GeoJSON to TopoJSON</a>.</li>
+        <li>If you want to make a tile map with custom tiles, you can get pretty far with <a href="http://cloudmade.com/">CloudMade</a> or <a href="http://www.mapbox.com/">MapBox</a>.  For full control, you'll probably want to use <a href="http://mapbox.com/tilemill/">TileMill</a>.  Lisa Williams has a <a href="http://dataforradicals.com/the-insanely-illustrated-guide-to-your-first-tile-mill-map/">tutorial on getting started with TileMill</a>.</li>
+        <li>If you're in the chloropleth business, the folks at MinnPost have a great utility for that called <a href="http://code.minnpost.com/tulip/">Tulip</a>.</li>
+        <li>If you're a developer, <a href="http://kartograph.org/">Kartograph.js</a> is a neat JavaScript library for building SVG maps that also includes support for IE7 and IE8.</li>        
+        <li>If you want to build stuff out of geodata and you don't mind paying for the privilege and giving up some control over the details, <a href="http://cartodb.com">CartoDB</a> offers a lot of features (Disclaimer: I've never used it).</li>        
+        <li>For detailed geodata about the entire world, <a href="http://wiki.openstreetmap.org/wiki/Main_Page">OpenStreetMap</a> is without equal, and has a vibrant ecosystem of lots of tools and services to help you extract specific data you want.  And it's free!</li>
+        <li>For semi-canonical shapefiles of countries of the world, states, provinces, coastlines, or other high-level features, try <a href="http://www.naturalearthdata.com/downloads/">Natural Earth Data</a>.  To get it as TopoJSON, try Mike Bostock's <a href="https://github.com/mbostock/world-atlas">World Atlas</a> tool.
+        <li>For US-specific geodata, you can try the <a href="http://www.census.gov/geo/maps-data/data/tiger.html">US Census Bureau</a>, but you'll probably end up in tears.  <a href="http://bl.ocks.org/mbostock/raw/4090846/us.json">This TopoJSON file</a> from Mike Bostock includes US counties and states and may be a shortcut.</li>
+        <li>Some news organizations offer boundary services that provide geodata exports for things like congressional districts, city council districts, and ZIP codes.  The <a href="http://boundaries.latimes.com/sets/">Los Angeles Times</a>, <a href="http://boundaries.tribapps.com/">Chicago Tribune</a>, and <a href="http://boundaries.minnpost.com/#datasets">MinnPost</a> all have great ones.
+        <li>In the UK, the Ordnance Survey offers <a href="https://www.ordnancesurvey.co.uk/opendatadownload/products.html">some data for download</a> and accepts custom shapefile requests if you're not in a hurry.</li>
+        <li>For miscellaneous geodata, you can try <a href="http://geocommons.com/">GeoCommons</a>.</li>    
+      </ul>                 
+
+
+    </div><!-- /container -->    
     <div class="container mapstarter-section unblankable" id="section-help">    
       <h4><strong>Mapstarter is a tool for turning a geographic data file into a map for the web.</strong></h4>
       <p>This is a work in progress.  Got ideas?  Requests?  Complaints?  Data files that didn't work?  <a href="mailto:noah@noahveltman.com">Let me know</a>.</p>
@@ -172,9 +257,7 @@
 
                 <label for="input-projection">Projection</label><select class="form-control" id="input-projection"><option value="mercator">Mercator (good for world maps)</option><option value="conicEqualArea">Conic Equal Area (good for chloropleths)</option><option value="equirectangular">Equirectangular (simple but distorting)</option><option value="albersUsa">Albers USA (US only, insets AK and HI)</option></select>
 
-                <label for="input-height">Responsive <span class="help-tooltip" data-animation="" title="Only affects the 'Download Code' option, map will automatically fill the surrounding &lt;div&gt;">?</span></label><input type="checkbox" id="responsive" />
-
-                <button type="button" class="btn btn-primary map-update">Update</button> 
+                <button type="button" class="btn btn-default map-update">Update</button> 
 
               </form>
             </div>
@@ -192,7 +275,7 @@
             <span><label for="color-stroke">Border color</label><input type="color" id="color-stroke" value="#ffffff" /></span>
             <span><label for="color-stroke-width">Border width</label><input type="number" step="0.25" min="0" class="form-control" id="color-stroke-width" placeholder="in px" value="1.00" /></span>
             
-            <button type="button" class="btn btn-primary map-update">Update</button> 
+            <button type="button" class="btn btn-default map-update">Update</button> 
             
           </form>
         </div>
@@ -203,16 +286,22 @@
       <h3>Behavior</h3>
       <div class="panel panel-default">      
         <div class="panel-body text-center">                    
-          <span><input type="checkbox" id="zoomable" checked /><label for="zoomable">Click on a feature to zoom</label></span>          
-          <span><input type="checkbox" id="pannable" disabled /><label for="pannable" style="color: #999;">Drag to pan (misbehaving, unavailable for now)</label></span>
+          <span><input type="radio" name="zoom" value="feature" id="zoom-feature" checked /><label for="zoom-feature">Click on a feature to zoom</label></span>          
+          <span><input type="radio" name="zoom" value="free" id="zoom-free" /><label for="zoom-free">Freeform zoom/pan</label></span>          
+          <span><input type="radio" name="zoom" value="none" id="zoom-none" /><label for="zoom-none">None</label></span>
         </div>
       </div>      
     </div><!-- /container -->    
 
     <div class="container mapstarter-section hidden" id="section-data">
       <h3>Attribute Table</h3>
-      <div class="panel panel-default">      
+      <div class="panel panel-default text-center">      
         <div class="panel-body text-center">                    
+          <div id="no-attributes" class="text-left">
+            <p class="lead">The features in this file have no attributes.</p>
+            <p>If you're using a shapefile, make sure you submit the .shp file AND the .dbf file on the "Choose File..." page.  You can do this by selecting both files, or by selecting a .zip file that contains both.</p>
+            <p>If you only submit a .shp file, you can still draw the map, but none of the attributes will be included.</p>
+          </div>
           <table id="attributes">
             <thead></thead>
             <tbody></tbody>
@@ -223,12 +312,12 @@
 
     <div class="container mapstarter-section hidden" id="section-download-svg">
       <h3>Download as an SVG</h3>
-      <p class="lead text-center"><a href="#" class="btn btn-primary" id="svg-download">Click here</a> to download as an SVG.</p>
+      <p class="lead text-center"><a href="#" class="btn btn-default" id="svg-download">Click here</a> to download as an SVG.</p>
       <div id="svg-div"></div>
     </div><!-- /container -->
     <div class="container mapstarter-section hidden" id="section-download-image">
       <h3>Download as an image</h3>
-      <p class="lead text-center"><button type="button" class="btn btn-primary" id="pancake-download">Click here</button> or right-click the image below to save it as a PNG.</p>
+      <p class="lead text-center"><button type="button" class="btn btn-default" id="pancake-download">Click here</button> or right-click the image below to save it as a PNG.</p>
       <div id="pancake-div" class="loading">
         <div class="panel panel-default">
           <div class="panel-body">
@@ -254,14 +343,33 @@
 
     <div id="map-box" class="hidden">
       <svg id="map">
-        <g id="draggable">
           <g id="features">
           </g>
-        </g>
       </svg>
     </div>       
 
-    <div id="junk" class="hidden"></div>
+    <div id="junk" class="hidden">            
+      <!-- Modal -->
+      <div class="modal fade" id="help-filetypes" tabindex="-1" role="dialog" aria-labelledby="About File Types" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+              <h4 class="modal-title">About File Types</h4>
+            </div>
+            <div class="modal-body">
+              Some stuff.
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>              
+            </div>
+          </div><!-- /.modal-content -->
+        </div><!-- /.modal-dialog -->
+      </div><!-- /.modal -->
+
+
+    </div>
+    <div id="tooltip" class="hidden"></div>
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="js/jquery.1.9.1.min.js"></script>
@@ -276,6 +384,7 @@
     <script src="js/highlight.min.js"></script>
     <script src="js/pancake.stack.min.js"></script>
     <script src="js/template.js"></script>
+    <script src="js/colorbrewer.js"></script>
     <script src="js/mapstarter.js"></script>
   </body>
 </html>
