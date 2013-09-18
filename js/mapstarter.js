@@ -2,7 +2,8 @@
 var currentHash = null;
 
 //Initialize vars for selectors. Mixing D3 & jQuery... what could go wrong??
-var mapBox,
+var body,
+  mapBox,
   map,
   features,
   paths,
@@ -11,13 +12,12 @@ var mapBox,
   attributesBody,
   code,
   fileStatus,
+  alert,
   attributesTable, attributesColumns, attributesRows, noAttributes,
   attributesSortColumn, attributesSortDir = -1;
 
 //Need this as jQuery for now, D3 click simulation for upload not working
-var $uploadFile,
-    $body,
-    $alert;  
+var $uploadFile;
 
 //Storing file properties
 var currentFile = {
@@ -38,9 +38,11 @@ var mapOptions = {
   stroke: "white",
   fill: "steelblue",
   highlight: "tomato",  
+  colorType: "simple",
+  chloropleth: {buckets: 3, type: "numeric", scale: "YlGn", map: {}},
   zoomMode: "feature",
   responsive: false,
-  tooltip: "name"
+  tooltip: false
 };
 
 //Currently centered feature, for zoom purposes
@@ -48,7 +50,7 @@ var centered;
 
 //Dragging variables, currently disabled
 
-var freeZoom = d3.behavior.zoom().scaleExtent([1, Infinity])
+var zoom = d3.behavior.zoom().scaleExtent([1, Infinity])
     .on("zoom", function() {
       if (mapOptions.zoomMode == "free") {
         zoomed();
@@ -57,24 +59,24 @@ var freeZoom = d3.behavior.zoom().scaleExtent([1, Infinity])
 
 $(document).ready(function() {
 
-  mapBox = d3.select("div#map-box");
-  map = d3.select("svg#map");
+  body = d3.select("body");
+  mapBox = body.select("div#map-box");
+  map = mapBox.select("svg#map");
   features = map.select("g#features");
   paths = features.selectAll("path");
-  upload = d3.select("div#upload-target");
-  fileStatus = d3.select("div#file-status");
-  noAttributes = d3.select("div#no-attributes");
-  attributesTable = d3.select("table#attributes");
+  upload = body.select("div#upload-target");
+  fileStatus = body.select("div#file-status");
+  alert = body.select("div.alert");
+  noAttributes = body.select("div#no-attributes");
+  attributesTable = body.select("table#attributes");
   attributesHeader = attributesTable.select("thead");
   attributesBody = attributesTable.select("tbody");
-  tooltip = d3.select("div#tooltip");
-  code = d3.select("code#download-code");   
+  tooltip = body.select("div#tooltip");
+  code = body.select("code#download-code");    
 
   $uploadFile = $("#upload-file");
-  $body = $("body");
-  $alert = $("div.alert:first");
 
-  map.call(freeZoom);
+  map.call(zoom);
 
   //Handlers for the upload target
   upload.on("dragenter",noop);
@@ -132,8 +134,8 @@ $(document).ready(function() {
   $("input#color-stroke-width").change(function() {        
     var w = parseFloat($(this).val());        
     $(this).val(w);
-    mapOptions.strokeWidth = w;
-    paths.attr("stroke-width",mapOptions.strokeWidth);
+    mapOptions.strokeWidth = w;        
+    paths.attr("stroke-width",mapOptions.strokeWidth);    
   });
 
   $("input#input-height").change(function(){
@@ -151,7 +153,6 @@ $(document).ready(function() {
   });
 
   $("#input-projection").change(function() {        
-
     mapOptions.projectionType = $(this).val();
     scaleMap();  
   });
@@ -164,6 +165,18 @@ $(document).ready(function() {
     mapOptions.zoomMode = $(this).val();
     resetMap();
   });
+
+  $("input#tooltip-toggle").change(function() {
+    var checked = $(this).is(":checked");
+    $("select#tooltip-attribute").attr("disabled",!checked);
+    mapOptions.tooltip = checked ? $("select#tooltip-attribute").val() : false;
+  });
+
+  $("select#tooltip-attribute").change(function() {
+    mapOptions.tooltip = $(this).val();
+  });
+
+  $("select#color-chloropleth-buckets,select#color-chloropleth-type").change(showScales);
 
   $("button.map-update").click(function() {
     scaleMap();
@@ -200,13 +213,6 @@ $(document).ready(function() {
     return false;
   });
 
-  /*features.on("mouseover",function() {
-    tooltip.classed("hidden",!mapOptions.tooltip);
-  })
-  .on("mouseout",function() {
-    tooltip.attr("class","hidden");
-  });*/
-
   //Process sample data links
   $("a.sample-data").click(function() {      
     var fn = $(this).data("filename");
@@ -237,9 +243,9 @@ $(document).ready(function() {
 //Extra wrapper function to allow for shapefiles to be uploaded as multiple files
 function readFiles(files) {
 
-  $alert.addClass("hidden");
+  alert.classed("hidden",true);
   upload.classed("loading",true);
-  $body.addClass("blanked");
+  body.classed("blanked",true);
 
   if (files.length == 1) {
     readFile(files[0]);
@@ -317,7 +323,7 @@ function tryMultiShapefile(shp,dbf) {
       try {
         var newFile = {name: shp.name.replace(/[.]shp$/i,".geojson"), size: response.responseText.length, data: {topo: null, geo: fixGeo(JSON.parse(response.responseText))}, type: "geojson"};
       } catch(err) {
-        if (currentFile.name) $body.removeClass("blanked");
+        if (currentFile.name) body.classed("blanked",false);
         msg("Not a valid file.  Shapefiles must be submitted one of three ways: 1) a .shp file, 2) a .shp and a .dbf file together, 3) a .zip file containing a .shp and .dbf file.",false);
         return false;
       }
@@ -348,7 +354,7 @@ function trySingleShapefile(file) {
       try {
         var newFile = {name: file.name.replace(/[.](shp|zip)$/i,".geojson"), size: response.responseText.length, data: {topo: null, geo: fixGeo(JSON.parse(response.responseText))}, type: "geojson"};              
       } catch(err) {
-        if (currentFile.name) $body.removeClass("blanked");
+        if (currentFile.name) body.classed("blanked",false);
         msg("Not a valid file.  Shapefiles must be submitted one of three ways: 1) a .shp file, 2) a .shp and a .dbf file together, 3) a .zip file containing a .shp and .dbf file.",false);
         return false;
       }
@@ -361,7 +367,7 @@ function trySingleShapefile(file) {
     });
 
   } else {
-    if (currentFile.name) $body.removeClass("blanked");
+    if (currentFile.name) body.classed("blanked",false);
     msg("Not a valid file.  Shapefiles must be submitted one of three ways: 1) a .shp file, 2) a .shp and a .dbf file together, 3) a .zip file containing a .shp and .dbf file.",false);
 
   }
@@ -398,7 +404,7 @@ function setFileType(to) {
 //Process newly loaded data
 function loaded(newFile) {          
 
-      $body.removeClass("blanked");
+      body.classed("blanked",false);
 
       currentFile = newFile;
 
@@ -443,14 +449,16 @@ function loaded(newFile) {
       attributesRows = attributesBody.selectAll("tr").data(f).enter().append("tr")
         .attr("id",function(d,i) { return "tr"+i;} )
         .on("mouseover",function(d,i) {
-          map.select("path#path"+i).attr("fill",mapOptions.highlight);
+          if (mapOptions.colorType == "simple") map.select("path#path"+i).attr("fill",mapOptions.highlight);
         })
         .on("mouseout",function(d,i) {                
-          map.select("path#path"+i+":not(.clicked)").attr("fill",mapOptions.fill);
+          if (mapOptions.colorType == "simple") map.select("path#path"+i+":not(.clicked)").attr("fill",mapOptions.fill);
         })
         .on("click",function(d,i) {          
           clicked(currentFile.data.geo.features[i]);
         });
+
+      $("select#tooltip-attribute option").remove();
 
       //Stringify any non-primitive data values
       attributesColumns.forEach(function(a) {
@@ -462,6 +470,10 @@ function loaded(newFile) {
             } 
             return "";
           });
+
+          $("select#tooltip-attribute").append($("<option />").val(a).text(a));
+          $("select#color-chloropleth-attribute").append($("<option />").val(a).text(a));
+          showScales();
       });
 
       //Populate the attribute table
@@ -524,9 +536,8 @@ function loaded(newFile) {
         })
         .on("click",clicked)
         .on("mouseover",function(d,i) {            
-          console.log("mouseover");
           var p = d3.select(this);
-          p.attr("fill",mapOptions.highlight);
+          if (mapOptions.colorType == "simple") p.attr("fill",mapOptions.highlight);
           if (currentHash == "data") d3.select("tr#tr"+i).style("background-color","#e6e6e6");
 
           if (mapOptions.tooltip) {            
@@ -534,13 +545,11 @@ function loaded(newFile) {
           }
         })
         .on("mousemove",function(d,i) {
-          console.log("mousemove");
           tooltip.style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px");
         })
         .on("mouseout",function(d,i) {
-          console.log("mouseout");
           var p = d3.select(this);
-          if (!p.classed("clicked")) p.attr("fill",mapOptions.fill);
+          if (!p.classed("clicked") && mapOptions.colorType == "simple") p.attr("fill",mapOptions.fill);
           if (currentHash == "data") d3.select("tr#tr"+i).style("background-color","#fff");
           tooltip.text("").attr("class","hidden");
       });
@@ -688,10 +697,12 @@ function clicked(d) {
     centered = null;
   }
 
-  features.selectAll("path")
+  paths
       .classed("clicked", centered && function(d) { return d === centered; })
-      .attr("fill", function(d) { return (centered && d === centered) ? mapOptions.highlight : mapOptions.fill; })
+      //.attr("fill", function(d) { return (centered && d === centered) ? mapOptions.highlight : mapOptions.fill; })
       .attr("stroke-width", mapOptions.strokeWidth / k + "px");
+
+  if (mapOptions.colorType == "simple") paths.attr("fill", function(d) { return (centered && d === centered) ? mapOptions.highlight : mapOptions.fill; });
 
   features.transition()
       .duration(750)
@@ -699,8 +710,8 @@ function clicked(d) {
 }
 
 function zoomed() {
-  features.attr("transform", "translate(" + freeZoom.translate() + ")scale(" + freeZoom.scale() + ")");
-  paths.attr("stroke-width",mapOptions.strokeWidth/freeZoom.scale() + "px" );  
+  features.attr("transform", "translate(" + zoom.translate() + ")scale(" + zoom.scale() + ")");
+  paths.attr("stroke-width",mapOptions.strokeWidth/zoom.scale() + "px" );  
 }
 
 //Based on map options, loop through features and generate SVG markup with styles
@@ -735,15 +746,8 @@ function oppositeColor(color) {
 //Throw an error message
 function msg(message,success) {
 
-  $alert.find("div").html(message);
+  alert.select("div").html(message).classed("alert-danger",true).classed("alert-info",false).classed("hidden",false);
 
-  if (success) {
-    $alert.removeClass("alert-danger").addClass("alert-info");
-  } else {
-    $alert.addClass("alert-danger").removeClass("alert-info");
-  }
-
-  $alert.removeClass("hidden");
   upload.classed("loading",false);
           
 }
@@ -774,12 +778,12 @@ function processHash(hash) {
 }
 
 //hashNav function for showing/hiding sections, generating stuff as needed
-function showSection(section) {        
+function showSection(section) {
   $("ul.navbar-nav li").removeClass("active");
   $("li#"+section).addClass("active");
   $("div.mapstarter-section").addClass("hidden");
   $("div#section-"+section).removeClass("hidden");
-  $alert.addClass("hidden");
+  alert.classed("hidden",true);
 
   if (currentFile && currentFile.name) resetMap();
 
@@ -917,5 +921,65 @@ function sortAttributeRows(column,direction) {
 
   sorted.forEach(function(r) {    
     $("tr#tr"+r.index).appendTo(attributesBody.node());
+  });
+}
+
+function showScales() {  
+  
+  //d3.select("div#color-chloropleth-scales").selectAll(".palette").remove();
+
+  mapOptions.chloropleth.buckets = parseInt($("select#color-chloropleth-buckets").val());
+  mapOptions.chloropleth.type = $("select#color-chloropleth-type").val();  
+  
+  var numOptions = $("select#color-chloropleth-buckets option").length;
+
+  if (mapOptions.chloropleth.type == "numeric" && numOptions > 9) {
+    $("select#color-chloropleth-buckets option:gt(8)").remove();
+  } else if (mapOptions.chloropleth.type == "categories" && numOptions < 10) {
+    $("select#color-chloropleth-buckets").append($("<option />").val("12").text("12"));
+  }
+
+  var scales = d3.select("div#color-chloropleth-scales").selectAll(".palette").data(d3.entries(colorbrewer[mapOptions.chloropleth.type]).filter(function(d) {
+    return d.value[mapOptions.chloropleth.buckets];
+  }).map(function(d) {
+    return {key: d.key, value: d.value[mapOptions.chloropleth.buckets]};
+  }));
+
+  scales.exit().remove();
+
+  scales.enter().append("div");
+
+  scales.attr("class",function(d,i) {
+      return "palette"+(d.key == mapOptions.chloroplethScale ? " selected" : "");
+    })
+    .attr("title",function(d){return d.key;})
+    .attr("id",function(d){return d.key;})
+    .on("click",function(d) {
+
+      var palette = d3.select(this);
+      if (!palette.classed("selected")) {
+        d3.select(".palette.selected").attr("class","palette");
+        palette.attr("class","palette selected");
+        mapOptions.chloropleth.scale = d.key;
+        scaleChanged();
+      }
+
+    })      
+    .selectAll(".swatch")
+      .data(function(d){return d.value;})
+      .enter().append("div")
+      .attr("class","swatch")                        
+      .style("background-color",function(d){ return d;});
+
+  if (!d3.select(".palette.selected").length) {
+    d3.select(".palette").attr("class","palette selected");
+    console.log(d3.select(".palette").data());
+  }
+}
+
+function scaleChanged() {
+  var colors = colorbrewer[mapOptions.chloropleth.type][mapOptions.chloropleth.scale][mapOptions.chloropleth.buckets];
+  paths.attr("fill",function(d){
+    return colors[Math.floor(colors.length*Math.random())];
   });
 }

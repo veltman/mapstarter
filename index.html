@@ -265,19 +265,61 @@
       </div>      
     </div><!-- /container -->
 
-    <div class="container mapstarter-section hidden" id="section-color">
-      <h3>Color/border options</h3>
+    <div class="container mapstarter-section hidden" id="section-color">      
       <div class="panel panel-default">      
-        <div class="panel-body text-center">
-          <form class="form-inline">
-            <span><label for="color-fill">Fill</label><input type="color" id="color-fill" value="#4682b4" /></span>
-            <span><label for="color-highlight">Highlight color</label><input type="color" id="color-highlight" value="#ff6347" /></span>
-            <span><label for="color-stroke">Border color</label><input type="color" id="color-stroke" value="#ffffff" /></span>
-            <span><label for="color-stroke-width">Border width</label><input type="number" step="0.25" min="0" class="form-control" id="color-stroke-width" placeholder="in px" value="1.00" /></span>
-            
-            <button type="button" class="btn btn-default map-update">Update</button> 
-            
-          </form>
+        <div class="panel-body">
+          <div>
+            <h4>Borders</h4>
+            <form class="form-inline">
+              <span><label for="color-stroke">Border color</label><input type="color" id="color-stroke" value="#ffffff" /></span>
+              <span><label for="color-stroke-width">Border width</label><input type="number" step="0.25" min="0" class="form-control" id="color-stroke-width" placeholder="in px" value="1.00" /></span>
+              
+              <button type="button" class="btn btn-default map-update">Update</button>             
+            </form>          
+          </div>
+          <div>
+            <h4>Colors</h4>
+            <form class="form-inline">
+              <div id="colors-simple">
+                <span><label for="color-fill">Fill</label><input type="color" id="color-fill" value="#4682b4" /></span>
+                <span><label for="color-highlight">Highlight color</label><input type="color" id="color-highlight" value="#ff6347" /></span>
+              </div>
+              <div id="colors-chloropleth">
+                <br/><br/>
+                <div>
+                  <label for="color-chloropleth-type">Type</label>
+                  <select id="color-chloropleth-type">
+                    <option value="numeric">Numeric</option>
+                    <option value="categories">Categories</option>                    
+                  </select>
+                </div>
+                <div>
+                  <label for="color-chloropleth-buckets"># of colors</label>
+                  <select id="color-chloropleth-buckets">
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10</option>
+                    <option value="11">11</option>                    
+                  </select>
+                </div>
+                <div>
+                  <label for="color-chloropleth-scales">Color scale</label>
+                  <div id="color-chloropleth-scales">                    
+                  </div>
+                </div>
+                <div>
+                  <label for="color-chloropleth-attribute">Attribute</label>
+                  <select id="color-chloropleth-attribute">                    
+                  </select>
+                </div>
+              </div>                                              
+            </form>                    
+          </div>
         </div>
       </div>
     </div><!-- /container -->
@@ -285,10 +327,22 @@
     <div class="container mapstarter-section hidden" id="section-behavior">
       <h3>Behavior</h3>
       <div class="panel panel-default">      
-        <div class="panel-body text-center">                    
-          <span><input type="radio" name="zoom" value="feature" id="zoom-feature" checked /><label for="zoom-feature">Click on a feature to zoom</label></span>          
-          <span><input type="radio" name="zoom" value="free" id="zoom-free" /><label for="zoom-free">Freeform zoom/pan</label></span>          
-          <span><input type="radio" name="zoom" value="none" id="zoom-none" /><label for="zoom-none">None</label></span>
+        <div class="panel-body">                    
+          <div>
+            <h4>Zoom</h4>
+            <form>
+              <span><input type="radio" name="zoom" value="feature" id="zoom-feature" checked /><label for="zoom-feature">Click on a feature to zoom</label></span>          
+              <span><input type="radio" name="zoom" value="free" id="zoom-free" /><label for="zoom-free">Freeform zoom/pan</label></span>
+              <span><input type="radio" name="zoom" value="none" id="zoom-none" /><label for="zoom-none">None</label></span>
+          </form>
+          </div>
+          <div>
+            <h4>Tooltip</h4>
+            <form>
+              <span><input type="checkbox" name="tooltip" value="yes" id="tooltip-toggle" /><label for="tooltip-toggle">Show a tooltip on hover</label></span>
+              <span><label for="tooltip-attribute">Which attribute?</label><select style="display: inline-block;" class="form-control" id="tooltip-attribute" disabled></select></span>            
+            </form>
+          </div>
         </div>
       </div>      
     </div><!-- /container -->    
