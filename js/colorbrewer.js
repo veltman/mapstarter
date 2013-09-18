@@ -1,6 +1,6 @@
 // This product includes color specifications and designs developed by Cynthia Brewer (http://colorbrewer.org/).
 var colorbrewer = {
-    Ordered: {
+    numeric: {
         YlGn: {
             3: ["#f7fcb9", "#addd8e", "#31a354"],
             4: ["#ffffcc", "#c2e699", "#78c679", "#238443"],
@@ -263,7 +263,7 @@ var colorbrewer = {
             11: ["#a50026", "#d73027", "#f46d43", "#fdae61", "#fee08b", "#ffffbf", "#d9ef8b", "#a6d96a", "#66bd63", "#1a9850", "#006837"]
         }
     },
-    Categories: {
+    categories: {
         Accent: {
             3: ["#7fc97f", "#beaed4", "#fdc086"],
             4: ["#7fc97f", "#beaed4", "#fdc086", "#ffff99"],

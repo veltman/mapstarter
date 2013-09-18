@@ -134,7 +134,7 @@ div#section-size label:first {
   margin-left: 0;
 }
 
-div#section-size select {
+div#section-size select, div#section-behavior select {
   width: auto;
 }
 
@@ -398,6 +398,26 @@ div#tooltip {
   font-weight: bold;
   text-align: center;
   font-size: 16px;
+}
+
+div.palette {
+  float: left;
+  padding: 16px;
+  cursor: pointer;
+}
+
+div.palette.selected {
+  background-color: #ccc;
+}
+
+div.palette:not(.selected):hover {
+  background-color: #dedede;
+}
+
+div.palette div.swatch {
+  float: left;
+  width: 16px;
+  height: 24px;  
 }
 
 @media screen and (max-width: 1040px) {  

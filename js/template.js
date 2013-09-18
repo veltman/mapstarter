@@ -1,11 +1,15 @@
 function generateCode(file,options) { 
 
-  console.log(options.zoomMode);
+  var codeLines = [];
 
-  var codeLines = [
+  codeLines = codeLines.concat([
         '<!DOCTYPE html>',
         '<meta charset="utf-8">',
         '<style>',
+        '',
+        'body {',
+        '  font: 12px sans-serif;',
+        '}',
         '',
         'path {',
         function() { if (options.strokeWidth > 0) return '  stroke-width: '+options.strokeWidth+'px;'; return null; },
@@ -18,6 +22,24 @@ function generateCode(file,options) {
         function() { if (options.highlight != options.fill) return '  fill: '+options.highlight+';';  return null; },
         function() { if (options.highlight != options.fill) return '}'; return null; },
         function() { if (options.highlight != options.fill) return ''; return null; },
+    ]);
+
+    if (options.tooltip) {
+        codeLines = codeLines.concat([
+            'div.tooltip {',            
+            '  position: absolute;',
+            '  background-color: white;',
+            '  border: 1px solid black;',
+            '  color: black;',
+            '  font-weight: bold;',
+            '  padding: 4px 8px;',            
+            '  display: none;',
+            '}',        
+            ''
+        ]);
+    }
+
+    codeLines = codeLines.concat([
         '</style>',
         '<body>',
         '<script src="http://d3js.org/d3.v3.min.js"></script>',
@@ -66,7 +88,7 @@ function generateCode(file,options) {
         '//Group for the map features',
         'var features = svg.append("g")',
         '    .attr("class","features");'
-    ];
+    ]);
 
     if (options.zoomMode == "free") {
         codeLines = codeLines.concat([
@@ -78,6 +100,14 @@ function generateCode(file,options) {
             '    .on("zoom",zoomed);',
             '',
             'svg.call(zoom);'
+        ]);
+    }
+
+    if (options.tooltip) {
+        codeLines = codeLines.concat([
+            '',
+            '//Create a tooltip, hidden at the start',
+            'var tooltip = d3.select("body").append("div").attr("class","tooltip");'
         ]);
     }
 
@@ -105,9 +135,10 @@ function generateCode(file,options) {
         '    .enter()',
         '    .append("path")',
         '    .attr("d",path)',
+        function() { if (options.tooltip) return '    .on("mouseover",showTooltip)'; return null; },
+        function() { if (options.tooltip) return '    .on("mousemove",moveTooltip)'; return null; },
+        function() { if (options.tooltip) return '    .on("mouseout",hideTooltip)'; return null; },
         '    .on("click",clicked);',
-        //'    .on("mouseover",mousedover)';
-        //'    .on("mouseover",mousedout);';
         '',
         '});'
     ]);
@@ -177,7 +208,39 @@ function generateCode(file,options) {
                 ''                
             ]);
         }
-    }           
+    }    
+
+    if (options.tooltip) {
+        codeLines = codeLines.concat([
+            '',
+            '//Position of the tooltip relative to the cursor',
+            'var tooltipOffset = {x: 5, y: -25};',
+            '',
+            '//Create a tooltip, hidden at the start',
+            'function showTooltip(d) {',
+            '  moveTooltip();',
+            '',
+            '  tooltip.style("display","block")',
+            function() {               
+                if (!options.tooltip.match(/^[$_A-Za-z][$_A-Za-z0-9]+$/)) {
+                    return '      .text(d["'+options.tooltip.replace('"','\"')+'"]);'
+                }
+                return '      .text(d.'+options.tooltip+');';                    
+            },
+            '}',
+            '',
+            '//Move the tooltip to track the mouse',
+            'function moveTooltip() {',
+            '  tooltip.style("top",(d3.event.pageY+tooltipOffset.y)+"px")',
+            '      .style("left",(d3.event.pageX+tooltipOffset.x)+"px");',
+            '}',
+            '',
+            '//Create a tooltip, hidden at the start',
+            'function hideTooltip() {',
+            '  tooltip.style("display","none");',
+            '}'                        
+        ]);
+    }
 
     if (options.responsive) {
         //Add this later

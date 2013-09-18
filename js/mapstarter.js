@@ -1,5 +1,5 @@
 //For hash-based navigation
-var currentHash = null;
+var currentSection = "choose-file";
 
 //Initialize vars for selectors. Mixing D3 & jQuery... what could go wrong??
 var body,
@@ -12,9 +12,12 @@ var body,
   attributesBody,
   code,
   fileStatus,
-  alert,
+  fileSize,
+  switchLinks,
+  alert,  
   attributesTable, attributesColumns, attributesRows, noAttributes,
-  attributesSortColumn, attributesSortDir = -1;
+  attributesSortColumn, attributesSortDir = -1,
+  inputs = {};
 
 //Need this as jQuery for now, D3 click simulation for upload not working
 var $uploadFile;
@@ -39,7 +42,7 @@ var mapOptions = {
   fill: "steelblue",
   highlight: "tomato",  
   colorType: "simple",
-  chloropleth: {buckets: 3, type: "numeric", scale: "YlGn", map: {}},
+  chloropleth: {buckets: 3, type: "numeric", scale: "YlGn", reverse: false, attribute: null, map: {}, default: "#999"},
   zoomMode: "feature",
   responsive: false,
   tooltip: false
@@ -61,11 +64,13 @@ $(document).ready(function() {
 
   body = d3.select("body");
   mapBox = body.select("div#map-box");
-  map = mapBox.select("svg#map");
+  map = mapBox.select("svg#map").call(zoom);
   features = map.select("g#features");
   paths = features.selectAll("path");
   upload = body.select("div#upload-target");
   fileStatus = body.select("div#file-status");
+  fileSize = body.selectAll("span.filesize");
+  switchLinks = body.selectAll("a.switch-type");
   alert = body.select("div.alert");
   noAttributes = body.select("div#no-attributes");
   attributesTable = body.select("table#attributes");
@@ -74,9 +79,364 @@ $(document).ready(function() {
   tooltip = body.select("div#tooltip");
   code = body.select("code#download-code");    
 
+  inputs.projection = body.select("select#input-projection");
+
   $uploadFile = $("#upload-file");
 
-  map.call(zoom);
+  setListeners();
+
+});
+
+
+
+
+//Process newly loaded data
+function loaded(newFile) {          
+
+      body.classed("blanked",false);      
+
+      currentFile = newFile;      
+
+      if (!currentFile.skip) currentFile.skip = [];
+
+      switchLinks.datum(currentFile.type == "geojson" ? "topojson" : "geojson");
+
+      //Choose a projection based on the data
+      chooseDefaultProjection(currentFile.data.geo);
+
+      setFileType(currentFile.type);      
+
+      //Get distinct properties for the attribute table, try to put ID and Name columns first, otherwise leave it alone
+      var set = d3.set();
+      currentFile.data.geo.features.forEach(function(d) {
+        for (prop in d.properties) {
+          set.add(prop);
+        }              
+      });
+      attributesColumns = set.values().sort(function(a,b) {
+        if (a.toLowerCase() == "id") return -1;
+        if (b.toLowerCase() == "name") return -1;        
+        return 0; 
+      });
+
+      attributesTable.classed("hidden",!attributesColumns.length);
+      noAttributes.classed("hidden",attributesColumns.length);
+
+      attributesBody.selectAll("tr").remove();
+      attributesRows = attributesBody.selectAll("tr").data(currentFile.data.geo.features).enter().append("tr")
+        .attr("id",function(d,i) { return "tr"+i;} )
+        .on("mouseover",function(d,i) {
+          if (mapOptions.colorType == "simple") map.select("path#path"+i).attr("fill",mapOptions.highlight);
+        })
+        .on("mouseout",function(d,i) {                
+          if (mapOptions.colorType == "simple") map.select("path#path"+i+":not(.clicked)").attr("fill",mapOptions.fill);
+        })
+        .on("click",function(d,i) {          
+          clicked(currentFile.data.geo.features[i]);
+        });
+
+      $("select#tooltip-attribute option,select#color-chloropleth-attribute option").remove();
+
+      //Stringify any non-primitive data values
+      attributesColumns.forEach(function(a) {
+        attributesRows.append("td")
+          .text(function(d) {
+            if (a in d.properties) {              
+              if (typeof d.properties[a] === "number" || typeof d.properties[a] === "string") return ""+d.properties[a];
+              return JSON.stringify(d.properties[a], null, " ");
+            } 
+            return "";
+          });
+
+          $("select#tooltip-attribute").append($("<option />").val(a).text(a));          
+          $("select#color-chloropleth-attribute").append($("<option />").val(a).text(a));          
+          showScales();
+      });
+
+      //Populate the attribute table
+      attributesHeader.selectAll("th").remove();
+      attributesHeader.selectAll("th").data(attributesColumns).enter().append("th")
+        .attr("class","sortable")
+        .html(function(d){return '<span class="glyphicon glyphicon-sort"></span>&nbsp;'+d;})
+        .on("click",function(d,i) {          
+          attributesHeader.select("th.sorted").classed("sorted",false).select("span").attr("class","glyphicon glyphicon-sort");
+          d3.select(this).classed("sorted",true).select("span").attr("class","glyphicon glyphicon-sort-by-attributes"+(attributesSortDir > 0 ? "-alt" : ""));
+          sortAttributeRows(attributesColumns[i],-attributesSortDir);
+        });
+      
+      //For deletion
+      attributesHeader.append("th").text("");
+
+      //For deletion
+      var deletes = attributesRows.append("td")
+          .attr("class","attribute-delete")
+          .on("click",function() {
+            d3.event.stopPropagation();            
+          });
+
+      deletes.append("a")    
+          .attr("href","#")
+          .on("click",function(d,i) {            
+            d3.event.stopPropagation();
+            d3.event.preventDefault();
+
+            var isDeleted = d3.select("tr#tr"+i).classed("deleted");            
+            if (isDeleted) {
+              d3.select(this).html('<span>&times;</span> Remove').attr("title","Remove this feature");              
+              if (currentFile.skip.indexOf(i) != -1) currentFile.skip = currentFile.skip.splice(currentFile.skip.indexOf(i),1);
+            } else {
+              d3.select(this).html('<span>+</span> Restore').attr("title","Restore this feature");              
+              if (currentFile.skip.indexOf(i) == -1) currentFile.skip.push(i);
+            }
+            
+            attributesBody.select("tr#tr"+i).classed("deleted",!isDeleted);
+            map.select("path#path"+i).style("display",isDeleted ? "block" : "none");  
+
+            updateDownloads("data");
+            scaleMap();
+            if (mapOptions.colorType == "chloropleth") recolor();
+
+            return false;
+          })
+          .attr("title","Delete this feature")
+          .html('<span>&times;</span> Remove');
+
+      paths.remove();
+
+      //Insert paths with hover events for highlighting
+      paths = features.selectAll("path").data(currentFile.data.geo.features).enter().append("path")
+        .attr("stroke-width",mapOptions.strokeWidth)
+        .attr("stroke",mapOptions.stroke)        
+        .attr("id",function(d,i) {
+          return "path"+i;
+        })
+        .on("click",clicked)
+        .on("mouseover",function(d,i) {            
+          var p = d3.select(this);
+          if (mapOptions.colorType == "simple") p.attr("fill",mapOptions.highlight);
+          if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#e6e6e6");
+
+          if (mapOptions.tooltip) {            
+            tooltip.text(d.properties[mapOptions.tooltip]).style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px").attr("class","");
+          }
+        })
+        .on("mousemove",function(d,i) {
+          tooltip.style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px");
+        })
+        .on("mouseout",function(d,i) {
+          var p = d3.select(this);
+          if (!p.classed("clicked") && mapOptions.colorType == "simple") p.attr("fill",mapOptions.fill);
+          if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#fff");
+          tooltip.text("").attr("class","hidden");
+      });
+      
+      recolor();
+      
+      //Draw the map
+      scaleMap();      
+
+      uploadComplete();
+
+      //Send them to the size/projection page first
+      showSection("size");
+
+}
+
+//Throw an error message
+function msg(key) {
+
+  var messages = {
+    "nofile": {
+      "type": "error",
+      "text": "No drag-and-drop file received."
+    },
+    "invalidfile": {
+      "type": "error",
+      "text": "No drag-and-drop file received."
+    },
+  }
+
+  //FIX THIS
+  alert.select("div").html(messages[key].text).classed("alert-danger",true).classed("hidden",false);
+
+  upload.classed("loading",false);
+          
+}
+
+//hashNav function for showing/hiding sections, generating stuff as needed
+function showSection(section) {
+  currentSection = section;
+  $("ul.navbar-nav li").removeClass("active");
+  $("li#"+section).addClass("active");
+  $("div.mapstarter-section").addClass("hidden");
+  $("div#section-"+section).removeClass("hidden");
+  alert.classed("hidden",true);
+
+  if (currentFile && currentFile.name) resetMap();
+
+  if (section.match(/^(download|choose-file|help)/)) {     
+    
+    if (section == "download-svg") {            
+      updateDownloads("svg");      
+      return true;
+
+    } else if (section == "download-code") {
+
+      var filebase = currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"");
+
+      updateDownloads("code");
+
+      return true;
+    }
+  
+    if (section == "download-image") {            
+
+      $("div#pancake-div").addClass("loading");
+
+      var flapjack = Pancake("map");
+      $("img#pancake-img").attr("src",flapjack.src);
+
+      $("button#pancake-download").click(function() {
+        flapjack.download(currentFile.name+".png");
+      });
+
+      $("div#pancake-div").removeClass("loading");
+
+    }
+
+  }
+    
+  mapBox.classed("hidden",section.match(/^(download-image|choose-file|help)$/));
+}
+
+function showScales() {  
+  
+  mapOptions.chloropleth.buckets = parseInt($("select#color-chloropleth-buckets").val());
+  mapOptions.chloropleth.type = $("select#color-chloropleth-type").val();  
+  mapOptions.chloropleth.attribute = $("select#color-chloropleth-attribute").val();
+
+  var numOptions = $("select#color-chloropleth-buckets option").length;
+
+  if (mapOptions.chloropleth.type == "numeric" && numOptions > 9) {    
+    $("select#color-chloropleth-buckets option:gt(8)").remove();
+  } else if (mapOptions.chloropleth.type == "categories" && numOptions < 10) {
+    $("select#color-chloropleth-buckets").append($("<option />").val("12").text("12"));
+  }
+
+  var entries = d3.entries(colorbrewer[mapOptions.chloropleth.type]).filter(function(d) {
+      return d.value[mapOptions.chloropleth.buckets];
+    }).map(function(d) {
+      return {key: d.key, value: d.value[mapOptions.chloropleth.buckets]};
+    });
+
+  if (mapOptions.chloropleth.type == "numeric" && mapOptions.chloropleth.reverse) {
+    entries.reverse();
+  }
+
+  var scales = d3.select("div#color-chloropleth-scales").selectAll(".palette")
+  .data(entries);
+
+  scales.exit().remove();
+
+  if (mapOptions.chloropleth.buckets == 5) return true;
+  scales.enter().append("div");
+
+  var swatches = scales.attr("class",function(d,i) {      
+      return "palette"+(d.key == mapOptions.chloropleth.scale ? " selected" : "");
+    })
+    .attr("title",function(d){return d.key;})
+    .attr("id",function(d){return d.key;})
+    .on("click",function(d) {
+
+      var palette = d3.select(this);
+      if (!palette.classed("selected")) {
+        d3.select(".palette.selected").attr("class","palette");
+        palette.attr("class","palette selected");
+        mapOptions.chloropleth.scale = d.key;
+        recolor();
+      }
+
+    })      
+    .selectAll(".swatch")
+      .data(function(d){ return d.value; });
+
+  swatches.exit().remove();
+
+  swatches.enter().append("div").attr("class","swatch")
+      .style("background-color",function(d){ return d;});
+
+  if (d3.select(".palette.selected").empty()) {
+    d3.select(".palette").attr("class","palette selected");
+    mapOptions.chloropleth.scale = d3.select(".palette").datum().key;
+  }
+
+  recolor();
+}
+
+
+function recolor() {
+  if (mapOptions.colorType == "simple") {
+    paths.attr("fill",mapOptions.fill);
+    return true;
+  }
+
+  var colors = colorbrewer[mapOptions.chloropleth.type][mapOptions.chloropleth.scale][mapOptions.chloropleth.buckets];
+
+  if (mapOptions.chloropleth.type == "numeric") {  
+
+    var mapped = filterFeatures(currentFile.data.geo,"geojson",currentFile.skip).features.map(function(d) {
+        if (!(mapOptions.chloropleth.attribute in d.properties)) return null;
+        return parseNumber(d.properties[mapOptions.chloropleth.attribute]);
+      }).filter(function(d) {return d !== null;});
+
+    var range = d3.range(mapOptions.chloropleth.buckets).map(function(i) { return colors[i]; });
+    if (mapOptions.chloropleth.reverse) range.reverse();
+
+    if (!mapped.length) paths.attr("fill",mapOptions.chloropleth.default);
+    else {      
+      var colorScale = d3.scale.quantize().domain(d3.extent(mapped)).range(range);
+
+      paths.attr("fill",function(d){
+        if (!d.properties || !mapOptions.chloropleth.attribute) return mapOptions.chloropleth.default;
+
+        var num = parseNumber(d.properties[mapOptions.chloropleth.attribute]);
+
+        if (num === null) return mapOptions.chloropleth.default;
+
+        return colorScale(num);
+              
+      });
+
+    }
+
+  } else {
+
+    paths.attr("fill",function(d){
+      if (!mapOptions.chloropleth.attribute || !(mapOptions.chloropleth.attribute in d.properties) || !(d.properties[mapOptions.chloropleth.attribute] in mapOptions.chloropleth.map)) {
+        return mapOptions.chloropleth.default;
+      }
+
+      return mapOptions.chloropleth.map[d];
+            
+    });
+
+  }
+  
+}
+
+
+
+
+
+
+function setListeners() {
+    
+  //When that input changes, attempt to read the file
+  $uploadFile.on("change",function() {
+    if ($(this)[0].files.length) {      
+      readFiles($(this)[0].files);      
+    }
+  });
 
   //Handlers for the upload target
   upload.on("dragenter",noop);
@@ -93,28 +453,26 @@ $(document).ready(function() {
     if (d3.event.dataTransfer.files.length) {
       readFiles(d3.event.dataTransfer.files);      
     } else {
-      msg("No drag-and-drop file detected.",false);
+      msg("nofile");
     }
   });
 
   //Cancel menu actions while loading
-  $("ul.navbar-nav a").click(function() {
-    if ((!currentFile.name || upload.classed("loading")) && !$(this).attr("href").match(/[#]?(choose-file|help)/)) {
-      return false;
-    }
+  body.selectAll("ul.navbar-nav a").on("click",function() {    
+    d3.event.preventDefault();
+
+    var section = d3.select(this).attr("href").replace(/^#/,"");
+
+    if (!currentFile.name || upload.classed("loading") || body.classed("blanked") || d3.select("div#section-"+section).empty()) return true;    
+
+    showSection(section);
+
   });
 
   //Clicking the drag target instead triggers a <hidden input type="file">
   upload.on("click",function() {    
     if (!upload.classed("loading") && !fileStatus.classed("loading")) $uploadFile.click();
-  });
-
-  //When that input changes, attempt to read the file
-  $uploadFile.on("change",function() {
-    if ($(this)[0].files.length) {      
-      readFiles($(this)[0].files);      
-    }
-  });      
+  }); 
 
   //Listeners for form updates
   $("input#color-fill").change(function(){    
@@ -166,6 +524,11 @@ $(document).ready(function() {
     resetMap();
   });
 
+  $("input[name='color-type']").change(function() {
+    mapOptions.colorType = $(this).val();
+    recolor();
+  });
+
   $("input#tooltip-toggle").change(function() {
     var checked = $(this).is(":checked");
     $("select#tooltip-attribute").attr("disabled",!checked);
@@ -178,44 +541,46 @@ $(document).ready(function() {
 
   $("select#color-chloropleth-buckets,select#color-chloropleth-type").change(showScales);
 
-  $("button.map-update").click(function() {
-    scaleMap();
+  $("select#color-chloropleth-attribute").change(function(){
+    mapOptions.chloropleth.attribute = $(this).val();
+    recolor(); 
   });
 
-  $("li#choose-file a").click(function() {
-    if (!upload.classed("loading") && !fileStatus.classed("loading")) $uploadFile.click();
-  });
-
-  $("a.switch-type").click(function() {
+  switchLinks.on("click",function() {
     if (!upload.classed("loading") && !fileStatus.classed("loading")) {
       
-      fileStatus.classed("loading",true);          
+      fileStatus.classed("loading",true); 
 
-      var to = $(this).data("switch");
+      var to = d3.select(this).datum();      
 
       if (to == "geojson") {
         setFileType(to);
       } else if (to == "topojson") {
-        
+
         if (currentFile.data.topo) {
+
           setFileType(to);
-        } else {          
+
+        } else {
+
+          //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
+          //Once whole server is running on Node this won't be necessary
           $.post("geo-to-topo.php",{geojson: JSON.stringify(currentFile.data.geo)},function(topo) {
             currentFile.data.topo = topo;
-            setFileType(to);
+            setFileType(to); 
           },"json");
-          //submit for conversion here
+
         }
       
       }
-    }
+    }  
 
-    return false;
+    d3.event.preventDefault();
   });
 
   //Process sample data links
-  $("a.sample-data").click(function() {      
-    var fn = $(this).data("filename");
+  d3.selectAll("a.sample-data").on("click",function() {      
+    var fn = d3.select(this).attr("href").replace(/^#/,"");
     
     if (fn == "random") {
 
@@ -233,22 +598,19 @@ $(document).ready(function() {
       loaded(newFile);
     });
 
-    return false;
+    d3.event.preventDefault();
   });
 
-  initHashNav(processHash);
+}
 
-});
 
 //Extra wrapper function to allow for shapefiles to be uploaded as multiple files
 function readFiles(files) {
 
-  alert.classed("hidden",true);
-  upload.classed("loading",true);
-  body.classed("blanked",true);
+  uploadStart();  
 
   if (files.length == 1) {
-    readFile(files[0]);
+    singleFile(files[0]);
   } else {
     var shp = [], dbf = [];
 
@@ -258,16 +620,17 @@ function readFiles(files) {
     }
 
     if (shp.length == 1 && dbf.length <= 1) {      
-      tryMultiShapefile(shp[0],dbf[0]);
+      multiFile(shp[0],dbf[0]);
     } else {
-      msg("Not a valid file.  Shapefiles must be submitted one of three ways: 1) a .shp file, 2) a .shp and a .dbf file together, 3) a .zip file containing a .shp and .dbf file.",false);
+      msg("invalidfile");
+      uploadComplete();   
       return false;
     }
   }
 }
 
 //Read in a user-inputted file
-function readFile(file) {
+function singleFile(file) {
 
   var newFile = {name: file.name, size: file.size, data: {topo: null, geo: null}, type: null};
 
@@ -288,14 +651,14 @@ function readFile(file) {
       }
 
       if (!newFile.type) {
-        tryShapefile(file);
+        singleShapefile(file);
       } else {
         loaded(newFile);
       }            
                 
     } catch(err) {  
       console.log(err);       
-      trySingleShapefile(file);                      
+      singleShapefile(file);                     
       return false;            
     }                  
     
@@ -309,7 +672,7 @@ function readFile(file) {
 }      
 
 //Try file as a .shp file and a .dbf file
-function tryMultiShapefile(shp,dbf) {
+function multiFile(shp,dbf) {
 
     //Create form with file upload
     var formData = new FormData();
@@ -318,13 +681,15 @@ function tryMultiShapefile(shp,dbf) {
 
 
     //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
+    //Once whole server is running on Node this won't be necessary
     d3.xhr("shp-to-geo.php").post(formData,function(error,response) {                
 
       try {
         var newFile = {name: shp.name.replace(/[.]shp$/i,".geojson"), size: response.responseText.length, data: {topo: null, geo: fixGeo(JSON.parse(response.responseText))}, type: "geojson"};
       } catch(err) {
         if (currentFile.name) body.classed("blanked",false);
-        msg("Not a valid file.  Shapefiles must be submitted one of three ways: 1) a .shp file, 2) a .shp and a .dbf file together, 3) a .zip file containing a .shp and .dbf file.",false);
+        msg("invalidfile");
+        uploadComplete();
         return false;
       }
 
@@ -337,231 +702,93 @@ function tryMultiShapefile(shp,dbf) {
 
 }
 
-
-//Try file as a zipped shapefile
-function trySingleShapefile(file) {
-
-  //Require .zip extension
-  if (file.name.match(/[.](zip|shp)$/i)) {
-
-    //Create form with file upload
-    var formData = new FormData();
-    formData.append(file.name.substring(file.name.length-3).toLowerCase(), file);
-
-
-    //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
-    d3.xhr("shp-to-geo.php").post(formData,function(error,response) {          
-      try {
-        var newFile = {name: file.name.replace(/[.](shp|zip)$/i,".geojson"), size: response.responseText.length, data: {topo: null, geo: fixGeo(JSON.parse(response.responseText))}, type: "geojson"};              
-      } catch(err) {
-        if (currentFile.name) body.classed("blanked",false);
-        msg("Not a valid file.  Shapefiles must be submitted one of three ways: 1) a .shp file, 2) a .shp and a .dbf file together, 3) a .zip file containing a .shp and .dbf file.",false);
-        return false;
-      }
-
-      loaded(newFile);
-
-      return true;
-
-
-    });
-
-  } else {
-    if (currentFile.name) body.classed("blanked",false);
-    msg("Not a valid file.  Shapefiles must be submitted one of three ways: 1) a .shp file, 2) a .shp and a .dbf file together, 3) a .zip file containing a .shp and .dbf file.",false);
-
+//Some fairly strict number parsing for numbers stored as strings
+function parseNumber(val) {
+  if (typeof val == "number") {
+    return val;
   }
+
+  if (typeof val == "string") {
+    val = val.replace(/(\s|,)/g,'');
+
+    if (val.match(/^-?[0-9]*[.]?[0-9]+$/)) return parseFloat(val);
+
+    return null;
+  }
+
+  return null;
 }
 
-function setFileType(to) {
-  code.text("");
-
-  currentFile.name = currentFile.name.replace(/[.](topo|geo)?json/,'')+"."+to;
-  currentFile.size = JSON.stringify(to == "geojson" ? currentFile.data.geo : currentFile.data.topo).length;
-
-  $("span.filesize").html("("+prettySize(currentFile.size)+")");
-
-  $("a.switch-type").html("Switch to "+(to == "geojson" ? "TopoJSON" : "GeoJSON")).data("switch",(to == "geojson" ? "topojson" : "geojson"));
-
-  currentFile.type = to;
-
-  var filebase = currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"");
-
-  var codeContents = generateCode(currentFile,mapOptions);
-
-  code.text(codeContents);
-
-  $("a.data-download").attr("download",currentFile.name).html(currentFile.name).attr("href",window.URL.createObjectURL(new Blob([JSON.stringify(filterFeatures((currentFile.type == "topojson") ? currentFile.data.topo : currentFile.data.geo, currentFile.type, currentFile.skip))], { "type" : "application/json" })));
-
-  $("a#code-download").attr("download",filebase+".html").html(filebase+".html").attr("href",window.URL.createObjectURL(new Blob([codeContents], { "type" : "text/html" })));      
-  
-  hljs.highlightBlock(code.node());
-
-  fileStatus.classed("loading",false);
-
+//Prevent d3 mouse defaults
+function noop() {
+  d3.event.stopPropagation();
+  d3.event.preventDefault();
 }
 
-//Process newly loaded data
-function loaded(newFile) {          
+// Sort the attribute rows.  Stringify any deep objects/arrays, treat numbers as numbers,
+// otherwise sort in lexicographic order, putting empty cells last
+function sortAttributeRows(column,direction) {
+  attributesSortColumn = column;
+  attributesSortDir = direction;
 
-      body.classed("blanked",false);
+  var data = attributesRows.data;
+  var sorted = [];  
 
-      currentFile = newFile;
+  var numeric = true;
 
-      if (!currentFile.skip) currentFile.skip = [];
+  attributesRows.data().forEach(function(d,i) {
+    if (numeric && column in d.properties && typeof d.properties[column] !== "number") {
+      numeric = false;
+    }
 
-      var f = currentFile.data.geo.features;
+    sorted.push({index: i, data: d});    
 
-      if (isUSA(currentFile.data.geo)) {
-        mapOptions.projectionType = "albersUsa";
-        $("select#input-projection").val("albersUsa");
-      } else {
-        mapOptions.projectionType = "mercator";
-        $("select#input-projection").val("mercator");
-      }
+  });
 
-      $("span.filesize").html("("+prettySize(currentFile.size)+")");
-      $("a.switch-type").html("Switch to "+(currentFile.type == "topojson" ? "GeoJSON" : "TopoJSON")).data("switch",(currentFile.type == "topojson" ? "geojson" : "topojson"));
+  //Do numeric sort if all numbers, otherwise lexicographic
+  if (numeric) sorted.sort(function(a,b) {
+    if (direction > 0) {
+      var s1 = a.data.properties[column], s2 = b.data.properties[column];
+    } else {
+      var s1 = b.data.properties[column], s2 = a.data.properties[column];
+    }
+    if (typeof s1 !== "number") return 1;
+    if (typeof s2 !== "number") return -1;    
+    
+    s1 = parseFloat(s1);
+    s2 = parseFloat(s2);
 
-      $("#file-status-inner").removeClass("hidden");
-      
-      //Set download links
-      $("a.data-download").attr("download",currentFile.name).html(currentFile.name).attr("href",window.URL.createObjectURL(new Blob([JSON.stringify((currentFile.type == "topojson") ? currentFile.data.topo : currentFile.data.geo)], { "type" : "application/json" })));
+    if (s1 < s2) return -1;
+    if (s2 < s1) return 1;
+    return 0;    
+  });
+  else sorted.sort(function(a,b) {
+    if (direction > 0) {
+      var s1 = a.data.properties[column], s2 = b.data.properties[column];
+    } else {
+      var s1 = b.data.properties[column], s2 = a.data.properties[column];
+    }
 
+    if (!s1) return 1;
+    if (!s2) return -1;
 
-      //Get distinct properties for the attribute table, try to put ID and Name columns first, otherwise leave it alone
-      var set = d3.set();
-      f.forEach(function(d) {
-        for (prop in d.properties) {
-          set.add(prop);
-        }              
-      });
-      attributesColumns = set.values().sort(function(a,b) {
-        if (a.toLowerCase() == "id") return -1;
-        if (b.toLowerCase() == "name") return -1;        
-        return 0; 
-      });
+    if (typeof s1 !== "string") s1 = JSON.stringify(s1);
+    if (typeof s2 !== "string") s2 = JSON.stringify(s2);
 
-      attributesTable.classed("hidden",!attributesColumns.length);
-      noAttributes.classed("hidden",attributesColumns.length);
+    if (s1 < s2) return -1;
+    if (s2 < s1) return 1;
+    return 0;    
+  });
 
-      attributesBody.selectAll("tr").remove();
-      attributesRows = attributesBody.selectAll("tr").data(f).enter().append("tr")
-        .attr("id",function(d,i) { return "tr"+i;} )
-        .on("mouseover",function(d,i) {
-          if (mapOptions.colorType == "simple") map.select("path#path"+i).attr("fill",mapOptions.highlight);
-        })
-        .on("mouseout",function(d,i) {                
-          if (mapOptions.colorType == "simple") map.select("path#path"+i+":not(.clicked)").attr("fill",mapOptions.fill);
-        })
-        .on("click",function(d,i) {          
-          clicked(currentFile.data.geo.features[i]);
-        });
+  sorted.forEach(function(r) {    
+    $("tr#tr"+r.index).appendTo(attributesBody.node());
+  });
+}
 
-      $("select#tooltip-attribute option").remove();
-
-      //Stringify any non-primitive data values
-      attributesColumns.forEach(function(a) {
-        attributesRows.append("td")
-          .text(function(d) {
-            if (d.properties[a]) {
-              if (typeof d.properties[a] === "number" || typeof d.properties[a] === "string") return d.properties[a];
-              return JSON.stringify(d.properties[a], null, " ");
-            } 
-            return "";
-          });
-
-          $("select#tooltip-attribute").append($("<option />").val(a).text(a));
-          $("select#color-chloropleth-attribute").append($("<option />").val(a).text(a));
-          showScales();
-      });
-
-      //Populate the attribute table
-      attributesHeader.selectAll("th").remove();
-      attributesHeader.selectAll("th").data(attributesColumns).enter().append("th")
-        .attr("class","sortable")
-        .html(function(d){return '<span class="glyphicon glyphicon-sort"></span>&nbsp;'+d;})
-        .on("click",function(d,i) {          
-          attributesHeader.select("th.sorted").classed("sorted",false).select("span").attr("class","glyphicon glyphicon-sort");
-          d3.select(this).classed("sorted",true).select("span").attr("class","glyphicon glyphicon-sort-by-attributes"+(attributesSortDir > 0 ? "-alt" : ""));
-          sortAttributeRows(attributesColumns[i],-attributesSortDir);
-        });
-      
-      //For deletion
-      attributesHeader.append("th").text("");
-
-      //For deletion
-      var deletes = attributesRows.append("td")
-          .attr("class","attribute-delete")
-          .on("click",function() {
-            d3.event.stopPropagation();            
-          });
-
-      deletes.append("a")
-          //.attr("class","btn btn-default")          
-          .attr("href","#")
-          .on("click",function(d,i) {            
-            d3.event.stopPropagation();
-            d3.event.preventDefault();
-
-            var isDeleted = d3.select("tr#tr"+i).classed("deleted");            
-            if (isDeleted) {
-              d3.select(this).html('<span>&times;</span> Remove').attr("title","Remove this feature");              
-              if (currentFile.skip.indexOf(i) != -1) currentFile.skip = currentFile.skip.splice(currentFile.skip.indexOf(i),1);
-            } else {
-              d3.select(this).html('<span>+</span> Restore').attr("title","Restore this feature");              
-              if (currentFile.skip.indexOf(i) == -1) currentFile.skip.push(i);
-            }
-            
-            attributesBody.select("tr#tr"+i).classed("deleted",!isDeleted);
-            map.select("path#path"+i).style("display",isDeleted ? "block" : "none");  
-
-            $("a.data-download").attr("download",currentFile.name).html(currentFile.name).attr("href",window.URL.createObjectURL(new Blob([JSON.stringify(filterFeatures((currentFile.type == "topojson") ? currentFile.data.topo : currentFile.data.geo, currentFile.type, currentFile.skip))], { "type" : "application/json" })));
-            scaleMap();
-
-            return false;
-          })
-          .attr("title","Delete this feature")
-          .html('<span>&times;</span> Remove');
-
-      paths.remove();
-
-      //Insert paths with hover events for highlighting
-      paths = features.selectAll("path").data(f).enter().append("path")
-        .attr("stroke-width",mapOptions.strokeWidth)
-        .attr("stroke",mapOptions.stroke)
-        .attr("fill",mapOptions.fill)
-        .attr("id",function(d,i) {
-          return "path"+i;
-        })
-        .on("click",clicked)
-        .on("mouseover",function(d,i) {            
-          var p = d3.select(this);
-          if (mapOptions.colorType == "simple") p.attr("fill",mapOptions.highlight);
-          if (currentHash == "data") d3.select("tr#tr"+i).style("background-color","#e6e6e6");
-
-          if (mapOptions.tooltip) {            
-            tooltip.text(d.properties[mapOptions.tooltip]).style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px").attr("class","");
-          }
-        })
-        .on("mousemove",function(d,i) {
-          tooltip.style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px");
-        })
-        .on("mouseout",function(d,i) {
-          var p = d3.select(this);
-          if (!p.classed("clicked") && mapOptions.colorType == "simple") p.attr("fill",mapOptions.fill);
-          if (currentHash == "data") d3.select("tr#tr"+i).style("background-color","#fff");
-          tooltip.text("").attr("class","hidden");
-      });
-
-      //Draw the map
-      scaleMap();      
-
-      upload.classed("loading",false);
-
-      //Send them to the size/projection page first
-      window.location.hash = "size";
-
+//Get the first object set from a TopoJSON file
+function getObjectName(topo) {
+  for (var i in topo.objects) return i;
+  return false;
 }
 
 //Detect GeoJSON vs. TopoJSON
@@ -572,36 +799,52 @@ function jsonType(data) {
   return "geojson";
 }
 
-//Prevent d3 mouse defaults
-function noop() {
-  d3.event.stopPropagation();
-  d3.event.preventDefault();
+//If it's GeoJSON but not a FeatureCollection, make it a FeatureCollection with a single feature for consistency
+function fixGeo(g) {
+
+  if (g.type == "FeatureCollection")  return g;
+
+  if (g.type == "Feature") return {type: "FeatureCollection", features: [g]};
+
+  return {type: "FeatureCollection", features: [{type: "Feature", geometry: g, properties: {}}]};
+
 }
 
-function scaleMap() {
+function updateDownloads(type) {
+  if (type == "svg") {
+    d3.select("a#svg-download").attr("download",currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"")+".svg").attr("href",window.URL.createObjectURL(new Blob([getSVG(currentFile.data.geo.features,currentFile.skip,mapOptions)], { "type" : "text/xml" })));  
+    return true;
+  }
 
-  resetMap();
+  if (type == "code") {
+    d3.select("a#code-download").attr("download",currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"")+".html").text(currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"")+".html").attr("href",window.URL.createObjectURL(new Blob([generateCode(currentFile,mapOptions)], { "type" : "text/html" })));      
 
-  map.attr("width",mapOptions.width)
-    .attr("height",mapOptions.height);
+    var codeContents = generateCode(currentFile,mapOptions);
 
-  //Update surrounding dive
-  mapBox
-    .style("width",mapOptions.width+"px")
-    .style("height",mapOptions.height+"px");
+    code.text(codeContents);
+            
+    hljs.highlightBlock(code.node());
+    
+    return true;
 
-  //Update the projection to center and fit in the provided box
-  updateProjection(filterFeatures(currentFile.data.geo,"geojson",currentFile.skip),mapOptions.width,mapOptions.height);
-}
+  }
 
-//Remove any applied transforms
-function resetMap() {
+  var filtered = filterFeatures((currentFile.type == "topojson") ? currentFile.data.topo : currentFile.data.geo,currentFile.type,currentFile.skip);
+  d3.selectAll("a.data-download").attr("download",currentFile.name).html(currentFile.name).attr("href",window.URL.createObjectURL(new Blob([JSON.stringify(filtered)], { "type" : "application/json" })));
+  return true;
+
   
-  paths.classed("clicked", false)
-    .attr("fill",mapOptions.fill)
-    .attr("stroke-width", mapOptions.strokeWidth + "px");
+}
 
-  features.attr("transform", null);
+//A human readable version of a filesize
+function prettySize(size) {
+  if (typeof size != "number") return 'unknown size';
+
+  if (size > 1000000) {
+    return Math.round(size/100000)/10+" MB";
+  } else {
+    return Math.round(size/100)/10+" KB";
+  }
 }
 
 //Update the map projection, auto-setting parallels or centers based on data
@@ -673,8 +916,148 @@ function updateProjection(data,width,height) {
 
 }
 
+
+//Compute the opposite color, for the default highlight color based on a given fill
+function oppositeColor(color) {        
+  var col = d3.hsl(color);
+  return d3.hsl((col.h+180) % 360,col.s,col.l).toString();        
+}
+
+//Attempt to detect a US map including AK and HI, switch to albersUsa
+//Mercator projection will also get tripped up something that crosses the
+//International Date Line, like Alaska, so switch to conicEqualArea
+function chooseDefaultProjection(data) {
+  //d3.select("select#input-projection")
+  var a = d3.geo.area(data),
+    b = d3.geo.bounds(data);
+
+  if (a > 0.21 && a < 0.24 && b[0][0] > 170 && b[0][0] < 174 && b[0][1] > 15 && b[0][1] < 19 && b[1][0] > -67 && b[1][0] < -61 && b[1][1] > 68 && b[1][1] < 74) {
+    mapOptions.projectionType = "albersUsa";
+  } else if (b[0][0] > b[1][0]) {
+    mapOptions.projectionType = "conicEqualArea";
+  } else {
+    mapOptions.projectionType = "mercator";
+  }
+
+  var node = inputs.projection.node();
+
+  for (var i = 0; i < node.options.length; i++) {
+    if (node.options[i].value == mapOptions.projectionType) {
+      node.selectedIndex = i;
+      break;
+    }
+  }
+}
+
+function uploadStart() {
+  alert.classed("hidden",true);
+  upload.classed("loading",true);
+  body.classed("blanked",true);
+  fileStatus.classed("loading",true);
+}
+
+function uploadComplete() {  
+  upload.classed("loading",false);
+
+  if (currentFile.name) {
+    body.classed("blanked",false);
+    fileStatus.classed("hidden",false);
+  }
+
+}
+
+//Try file as a zipped shapefile
+function singleShapefile(file) {
+
+  //Require .zip extension
+  if (file.name.match(/[.](zip|shp)$/i)) {
+
+    //Create form with file upload
+    var formData = new FormData();
+    formData.append(file.name.substring(file.name.length-3).toLowerCase(), file);
+
+    //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
+    //Once whole server is running on Node this won't be necessary
+    d3.xhr("shp-to-geo.php").post(formData,function(error,response) {          
+      try {
+        var newFile = {name: file.name.replace(/[.](shp|zip)$/i,".geojson"), size: response.responseText.length, data: {topo: null, geo: fixGeo(JSON.parse(response.responseText))}, type: "geojson"};
+      } catch(err) {
+        if (currentFile.name) body.classed("blanked",false);
+        msg("invalidfile");
+        uploadComplete();
+        return false;
+      }
+
+      loaded(newFile);
+
+      return true;
+
+
+    });
+
+  } else {
+    if (currentFile.name) body.classed("blanked",false);
+    msg("invalidfile");      
+
+  }
+}
+
+//When the filetype changes, update the file download links and the "Download Code" section
+function setFileType(fileType) {
+
+  var opposite = (fileType == "topojson") ? "geojson" : "topojson",
+    pretty = (opposite == "topojson") ? "TopoJSON" : "GeoJSON",
+    dataType = (fileType == "topojson") ? "topo" : "geo",
+    fileBase = currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"");
+
+  code.text("");
+
+  currentFile.name = fileBase+"."+fileType;
+  currentFile.size = JSON.stringify(currentFile.data[dataType]).length;
+
+  fileSize.text("("+prettySize(currentFile.size)+")");
+  switchLinks.text("Switch to "+pretty).datum(opposite);
+
+  currentFile.type = fileType;
+
+  if (currentSection == "download-code") updateDownloads("code");
+
+  updateDownloads("data");  
+
+  fileStatus.classed("loading",false);
+
+}
+
+//Change map scale
+function scaleMap() {
+
+  resetMap();
+
+  map.attr("width",mapOptions.width)
+    .attr("height",mapOptions.height);
+
+  //Update surrounding dive
+  mapBox
+    .style("width",mapOptions.width+"px")
+    .style("height",mapOptions.height+"px");
+
+  //Update the projection to center and fit in the provided box
+  updateProjection(filterFeatures(currentFile.data.geo,"geojson",currentFile.skip),mapOptions.width,mapOptions.height);
+}
+
+//Remove any applied transforms
+function resetMap() {
+  
+  paths.classed("clicked", false)    
+    .attr("stroke-width", mapOptions.strokeWidth + "px");
+
+  recolor();  
+
+  features.attr("transform", null);
+}
+
 //Zooming to a feature
-function clicked(d) {    
+function clicked(d) {   
   if (mapOptions.zoomMode != "feature") return true;
   
   var x, y, k;
@@ -699,7 +1082,6 @@ function clicked(d) {
 
   paths
       .classed("clicked", centered && function(d) { return d === centered; })
-      //.attr("fill", function(d) { return (centered && d === centered) ? mapOptions.highlight : mapOptions.fill; })
       .attr("stroke-width", mapOptions.strokeWidth / k + "px");
 
   if (mapOptions.colorType == "simple") paths.attr("fill", function(d) { return (centered && d === centered) ? mapOptions.highlight : mapOptions.fill; });
@@ -709,141 +1091,30 @@ function clicked(d) {
       .attr("transform", "translate(" + mapOptions.width / 2 + "," + mapOptions.height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")");
 }
 
+//Freeform zooming
 function zoomed() {
   features.attr("transform", "translate(" + zoom.translate() + ")scale(" + zoom.scale() + ")");
   paths.attr("stroke-width",mapOptions.strokeWidth/zoom.scale() + "px" );  
 }
 
 //Based on map options, loop through features and generate SVG markup with styles
-function getSVG() {
-  var svg = '<?xml version="1.0" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg width="'+mapOptions.width+'" height="'+mapOptions.height+'" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
+function getSVG(features,skip,options) {
+  var svg = '<?xml version="1.0" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg width="'+options.width+'" height="'+options.height+'" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
 
-  currentFile.data.geo.features.forEach(function(d,i) {
-    if (!currentFile.skip || currentFile.skip.indexOf(i) == -1) svg += '<path stroke-width="'+mapOptions.strokeWidth+'" stroke="'+mapOptions.stroke+'" fill="'+mapOptions.fill+'" d="'+mapOptions.path(d)+'" />';
+  features.forEach(function(d,i) {
+    if (!skip || skip.indexOf(i) == -1) svg += '<path stroke-width="'+options.strokeWidth+'" stroke="'+options.stroke+'" fill="'+options.fill+'" d="'+options.path(d)+'" />';
   });
 
   svg += '</svg>';
   return svg;
 }
 
-//A human readable version of a filesize
-function prettySize(size) {
-  if (typeof size != "number") return 'unknown size';
-
-  if (size > 1000000) {
-    return Math.round(size/100000)/10+" MB";
-  } else {
-    return Math.round(size/100)/10+" KB";
-  }
-}
-
-//Compute the opposite color, for the default highlight color based on a given fill
-function oppositeColor(color) {        
-  var col = d3.hsl(color);
-  return d3.hsl((col.h+180) % 360,col.s,col.l).toString();        
-}
-
-//Throw an error message
-function msg(message,success) {
-
-  alert.select("div").html(message).classed("alert-danger",true).classed("alert-info",false).classed("hidden",false);
-
-  upload.classed("loading",false);
-          
-}
-
-//Get the first object set from a TopoJSON file
-function getObjectName(topo) {
-  for (var i in topo.objects) return i;
-  return false;
-}
-
-//If it's GeoJSON but not a FeatureCollection, make it a FeatureCollection with a single feature for consistency
-function fixGeo(g) {
-
-  if (g.type == "FeatureCollection")  return g;
-
-  if (g.type == "Feature") return {type: "FeatureCollection", features: [g]};
-
-  return {type: "FeatureCollection", features: [{type: "Feature", geometry: g, properties: {}}]};
-
-}
-
-function processHash(hash) {
-    if (currentHash != hash.base) {            
-      currentHash = (hash.base.length && (currentFile.data || hash.base == "help")) ? hash.base : "choose-file";
-      window.location.hash = currentHash;
-    }
-    showSection(currentHash);         
-}
-
-//hashNav function for showing/hiding sections, generating stuff as needed
-function showSection(section) {
-  $("ul.navbar-nav li").removeClass("active");
-  $("li#"+section).addClass("active");
-  $("div.mapstarter-section").addClass("hidden");
-  $("div#section-"+section).removeClass("hidden");
-  alert.classed("hidden",true);
-
-  if (currentFile && currentFile.name) resetMap();
-
-  if (section.match(/^(download|choose-file|help)/)) {     
-    
-    if (section == "download-svg") {            
-
-      var filename = currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"")+".svg";
-
-      $("a#svg-download").attr("download",filename).attr("href",window.URL.createObjectURL(new Blob([getSVG()], { "type" : "text/xml" })));            
-      return true;
-
-    } else if (section == "download-code") {
-
-      var filebase = currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"");
-
-      var codeContents = generateCode(currentFile,mapOptions);
-
-      code.text(codeContents);
-
-      $("a#code-download").attr("download",filebase+".html").html(filebase+".html").attr("href",window.URL.createObjectURL(new Blob([codeContents], { "type" : "text/html" })));      
-      
-      hljs.highlightBlock(code.node());
-
-      return true;
-    }
-  
-    if (section == "download-image") {            
-
-      $("div#pancake-div").addClass("loading");
-
-      var flapjack = Pancake("map");
-      $("img#pancake-img").attr("src",flapjack.src);
-
-      $("button#pancake-download").click(function() {
-        flapjack.download(currentFile.name+".png");
-      });
-
-      $("div#pancake-div").removeClass("loading");
-
-    }
-
-  }
-    
-  mapBox.classed("hidden",section.match(/^(download-image|choose-file|help)$/));
-}
-
-//Attempt to detect a US map including AK and HI, switch to albersUsa
-function isUSA(data) {
-  var a = d3.geo.area(data),
-  b = d3.geo.bounds(data);
-
-  return (a > 0.21 && a < 0.24 && b[0][0] > 170 && b[0][0] < 174 && b[0][1] > 15 && b[0][1] < 19 && b[1][0] > -67 && b[1][0] < -61 && b[1][1] > 68 && b[1][1] < 74);
-
-}
-
 //Filter features for file download links, removing features that are marked as removed in the "Data" tab
-function filterFeatures(data,type,skip) {  
-  var newData = $.extend(true,{},data);
-  if (!skip || !skip.length) return newData;
+function filterFeatures(data,type,skip) {    
+  if (!skip || !skip.length) return data;
+
+  //Deep copy
+  var newData = $.extend(true,{},data);  
 
   if (type == "topojson") {
     var o = getObjectName(data);    
@@ -862,124 +1133,4 @@ function filterFeatures(data,type,skip) {
   }
   
   return newData;
-}
-
-// Sort the attribute rows.  Stringify any deep objects/arrays, treat numbers as numbers,
-// otherwise sort in lexicographic order, putting empty cells last
-function sortAttributeRows(column,direction) {
-  attributesSortColumn = column;
-  attributesSortDir = direction;
-
-  var data = attributesRows.data;
-  var sorted = [];  
-
-  var numeric = true;
-
-  attributesRows.data().forEach(function(d,i) {
-    if (numeric && d.properties[column] && typeof d.properties[column] !== "number") {
-      numeric = false;
-    }
-
-    sorted.push({index: i, data: d});    
-
-  });
-
-  //Do numeric sort if all numbers, otherwise lexicographic
-  if (numeric) sorted.sort(function(a,b) {
-    if (direction > 0) {
-      var s1 = a.data.properties[column], s2 = b.data.properties[column];
-    } else {
-      var s1 = b.data.properties[column], s2 = a.data.properties[column];
-    }
-    if (typeof s1 !== "number") return 1;
-    if (typeof s2 !== "number") return -1;    
-    
-    s1 = parseFloat(s1);
-    s2 = parseFloat(s2);
-
-    if (s1 < s2) return -1;
-    if (s2 < s1) return 1;
-    return 0;    
-  });
-  else sorted.sort(function(a,b) {
-    if (direction > 0) {
-      var s1 = a.data.properties[column], s2 = b.data.properties[column];
-    } else {
-      var s1 = b.data.properties[column], s2 = a.data.properties[column];
-    }
-
-    if (!s1) return 1;
-    if (!s2) return -1;
-
-    if (typeof s1 !== "string") s1 = JSON.stringify(s1);
-    if (typeof s2 !== "string") s2 = JSON.stringify(s2);
-
-    if (s1 < s2) return -1;
-    if (s2 < s1) return 1;
-    return 0;    
-  });
-
-  sorted.forEach(function(r) {    
-    $("tr#tr"+r.index).appendTo(attributesBody.node());
-  });
-}
-
-function showScales() {  
-  
-  //d3.select("div#color-chloropleth-scales").selectAll(".palette").remove();
-
-  mapOptions.chloropleth.buckets = parseInt($("select#color-chloropleth-buckets").val());
-  mapOptions.chloropleth.type = $("select#color-chloropleth-type").val();  
-  
-  var numOptions = $("select#color-chloropleth-buckets option").length;
-
-  if (mapOptions.chloropleth.type == "numeric" && numOptions > 9) {
-    $("select#color-chloropleth-buckets option:gt(8)").remove();
-  } else if (mapOptions.chloropleth.type == "categories" && numOptions < 10) {
-    $("select#color-chloropleth-buckets").append($("<option />").val("12").text("12"));
-  }
-
-  var scales = d3.select("div#color-chloropleth-scales").selectAll(".palette").data(d3.entries(colorbrewer[mapOptions.chloropleth.type]).filter(function(d) {
-    return d.value[mapOptions.chloropleth.buckets];
-  }).map(function(d) {
-    return {key: d.key, value: d.value[mapOptions.chloropleth.buckets]};
-  }));
-
-  scales.exit().remove();
-
-  scales.enter().append("div");
-
-  scales.attr("class",function(d,i) {
-      return "palette"+(d.key == mapOptions.chloroplethScale ? " selected" : "");
-    })
-    .attr("title",function(d){return d.key;})
-    .attr("id",function(d){return d.key;})
-    .on("click",function(d) {
-
-      var palette = d3.select(this);
-      if (!palette.classed("selected")) {
-        d3.select(".palette.selected").attr("class","palette");
-        palette.attr("class","palette selected");
-        mapOptions.chloropleth.scale = d.key;
-        scaleChanged();
-      }
-
-    })      
-    .selectAll(".swatch")
-      .data(function(d){return d.value;})
-      .enter().append("div")
-      .attr("class","swatch")                        
-      .style("background-color",function(d){ return d;});
-
-  if (!d3.select(".palette.selected").length) {
-    d3.select(".palette").attr("class","palette selected");
-    console.log(d3.select(".palette").data());
-  }
-}
-
-function scaleChanged() {
-  var colors = colorbrewer[mapOptions.chloropleth.type][mapOptions.chloropleth.scale][mapOptions.chloropleth.buckets];
-  paths.attr("fill",function(d){
-    return colors[Math.floor(colors.length*Math.random())];
-  });
 }
