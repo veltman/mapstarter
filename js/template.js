@@ -14,15 +14,32 @@ function generateCode(file,options) {
         'path {',
         function() { if (options.strokeWidth > 0) return '  stroke-width: '+options.strokeWidth+'px;'; return null; },
         function() { if (options.strokeWidth > 0) return '  stroke: '+options.stroke+';'; return '  stroke: none;' },
-        '  fill: '+options.fill+';',
+        function() { if (options.colorType == "simple") return '  fill: '+options.fill+';'; return null; },
         '  cursor: pointer;',
         '}',
-        '',
-        function() { if (options.highlight != options.fill) return 'path:hover, path.higlighted {';  return null; },
-        function() { if (options.highlight != options.fill) return '  fill: '+options.highlight+';';  return null; },
-        function() { if (options.highlight != options.fill) return '}'; return null; },
-        function() { if (options.highlight != options.fill) return ''; return null; },
+        ''
     ]);
+
+    if (options.colorType == "simple" && options.highlight != options.fill) {
+        codeLines = codeLines.concat([
+            'path:hover, path.highlighted {',
+            '  fill: '+options.highlight+';',
+            '}',
+            ''
+        ]);
+    } else if (options.colorType == "chloropleth") {
+        var domain = options.chloropleth.scale.domain();
+        var range = options.chloropleth.scale.range();
+        range.forEach(function(d,i) {
+            codeLines = codeLines.concat([
+                'path.q'+i+'-'+range.length+' {',
+                '  fill: '+d+';',
+                '}',
+                ''
+            ]);
+        });
+
+    }
 
     if (options.tooltip) {
         codeLines = codeLines.concat([
@@ -90,6 +107,16 @@ function generateCode(file,options) {
         '    .attr("class","features");'
     ]);
 
+    if (options.colorType == "chloropleth") {
+        codeLines = codeLines.concat([
+            '',
+            '//Create chloropleth scale',
+            'var color = d3.scale.quantize()',
+            '    .domain(['+domain+'])',            
+            '    .range(d3.range('+range.length+').map(function(i) { return "q" + i + "-'+range.length+'"; }));'
+        ]);        
+    }
+
     if (options.zoomMode == "free") {
         codeLines = codeLines.concat([
             '',
@@ -135,6 +162,19 @@ function generateCode(file,options) {
         '    .enter()',
         '    .append("path")',
         '    .attr("d",path)',
+        function() {
+            if (options.colorType != "chloropleth") return null;
+
+            var a;
+            
+            if (!options.chloropleth.attribute.match(/^[$_A-Za-z][$_A-Za-z0-9]+$/)) {
+                a = 'd.properties["'+options.chloropleth.attribute.replace('"','\"')+'"]';                        
+            } else {
+                a = 'd.properties.'+options.chloropleth.attribute;
+            }             
+
+            return '    .attr("class", function(d) { return color('+a+'); })';
+        },
         function() { if (options.tooltip) return '    .on("mouseover",showTooltip)'; return null; },
         function() { if (options.tooltip) return '    .on("mousemove",moveTooltip)'; return null; },
         function() { if (options.tooltip) return '    .on("mouseout",hideTooltip)'; return null; },
@@ -142,7 +182,6 @@ function generateCode(file,options) {
         '',
         '});'
     ]);
-
 
     if (options.zoomMode == "feature") {
 

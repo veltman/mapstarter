@@ -14,10 +14,9 @@ var body,
   fileStatus,
   fileSize,
   switchLinks,
-  alert,  
+  alerts,  
   attributesTable, attributesColumns, attributesRows, noAttributes,
-  attributesSortColumn, attributesSortDir = -1,
-  inputs = {};
+  attributesSortColumn, attributesSortDir = -1;
 
 //Need this as jQuery for now, D3 click simulation for upload not working
 var $uploadFile;
@@ -42,7 +41,7 @@ var mapOptions = {
   fill: "steelblue",
   highlight: "tomato",  
   colorType: "simple",
-  chloropleth: {buckets: 3, type: "numeric", scale: "YlGn", reverse: false, attribute: null, map: {}, default: "#999"},
+  chloropleth: {buckets: 3, type: "numeric", scaleName: "YlGn", scale: d3.scale.quantize(), reverse: false, attribute: null, map: {}, default: "#999"},
   zoomMode: "feature",
   responsive: false,
   tooltip: false
@@ -50,8 +49,6 @@ var mapOptions = {
 
 //Currently centered feature, for zoom purposes
 var centered;
-
-//Dragging variables, currently disabled
 
 var zoom = d3.behavior.zoom().scaleExtent([1, Infinity])
     .on("zoom", function() {
@@ -71,15 +68,13 @@ $(document).ready(function() {
   fileStatus = body.select("div#file-status");
   fileSize = body.selectAll("span.filesize");
   switchLinks = body.selectAll("a.switch-type");
-  alert = body.select("div.alert");
+  alerts = body.select("div#alerts");
   noAttributes = body.select("div#no-attributes");
   attributesTable = body.select("table#attributes");
   attributesHeader = attributesTable.select("thead");
   attributesBody = attributesTable.select("tbody");
   tooltip = body.select("div#tooltip");
   code = body.select("code#download-code");    
-
-  inputs.projection = body.select("select#input-projection");
 
   $uploadFile = $("#upload-file");
 
@@ -148,9 +143,9 @@ function loaded(newFile) {
             return "";
           });
 
-          $("select#tooltip-attribute").append($("<option />").val(a).text(a));          
-          $("select#color-chloropleth-attribute").append($("<option />").val(a).text(a));          
-          showScales();
+          $("select.attribute-list").append($("<option />").val(a).text(a));          
+          //$("select#color-chloropleth-attribute").append($("<option />").val(a).text(a));          
+          populateScales();
       });
 
       //Populate the attribute table
@@ -182,10 +177,10 @@ function loaded(newFile) {
 
             var isDeleted = d3.select("tr#tr"+i).classed("deleted");            
             if (isDeleted) {
-              d3.select(this).html('<span>&times;</span> Remove').attr("title","Remove this feature");              
+              d3.select(this).html('<span>&times;</span>&nbsp;Remove').attr("title","Remove this feature");              
               if (currentFile.skip.indexOf(i) != -1) currentFile.skip = currentFile.skip.splice(currentFile.skip.indexOf(i),1);
             } else {
-              d3.select(this).html('<span>+</span> Restore').attr("title","Restore this feature");              
+              d3.select(this).html('<span>+</span>&nbsp;Restore').attr("title","Restore this feature");              
               if (currentFile.skip.indexOf(i) == -1) currentFile.skip.push(i);
             }
             
@@ -199,7 +194,7 @@ function loaded(newFile) {
             return false;
           })
           .attr("title","Delete this feature")
-          .html('<span>&times;</span> Remove');
+          .html('<span>&times;</span>&nbsp;Remove');
 
       paths.remove();
 
@@ -217,7 +212,8 @@ function loaded(newFile) {
           if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#e6e6e6");
 
           if (mapOptions.tooltip) {            
-            tooltip.text(d.properties[mapOptions.tooltip]).style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px").attr("class","");
+            var t = (typeof d.properties[mapOptions.tooltip] == "string" || d.properties[mapOptions.tooltip] == "number") ? d.properties[mapOptions.tooltip] : JSON.stringify(d.properties[mapOptions.tooltip]);
+            tooltip.text(t).style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px").attr("class","");
           }
         })
         .on("mousemove",function(d,i) {
@@ -256,63 +252,44 @@ function msg(key) {
     },
   }
 
-  //FIX THIS
-  alert.select("div").html(messages[key].text).classed("alert-danger",true).classed("hidden",false);
+  var a = alerts.append("div")
+    .attr("class","alert "+messages[key].type)
+    .text(messages[key].text);
+    
+  a.append("span")
+    .attr("class","alert-close")
+    .html("&times;")
+    .on("click",function() {
+      a.remove();
+    });
 
   upload.classed("loading",false);
           
 }
 
-//hashNav function for showing/hiding sections, generating stuff as needed
+//nav function for showing/hiding sections, generating stuff as needed
 function showSection(section) {
   currentSection = section;
-  $("ul.navbar-nav li").removeClass("active");
+  $("div.navbar ul li").removeClass("active");
   $("li#"+section).addClass("active");
   $("div.mapstarter-section").addClass("hidden");
   $("div#section-"+section).removeClass("hidden");
-  alert.classed("hidden",true);
+  alerts.classed("hidden",true);
 
   if (currentFile && currentFile.name) resetMap();
 
-  if (section.match(/^(download|choose-file|help)/)) {     
-    
-    if (section == "download-svg") {            
-      updateDownloads("svg");      
-      return true;
-
-    } else if (section == "download-code") {
-
-      var filebase = currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"");
-
-      updateDownloads("code");
-
-      return true;
-    }
-  
-    if (section == "download-image") {            
-
-      $("div#pancake-div").addClass("loading");
-
-      var flapjack = Pancake("map");
-      $("img#pancake-img").attr("src",flapjack.src);
-
-      $("button#pancake-download").click(function() {
-        flapjack.download(currentFile.name+".png");
-      });
-
-      $("div#pancake-div").removeClass("loading");
-
-    }
-
+  if (section == "download") {
+    updateDownloads("svg");
+    updateDownloads("code");    
+    updateDownloads("image");
   }
-    
-  mapBox.classed("hidden",section.match(/^(download-image|choose-file|help)$/));
+
+  mapBox.classed("hidden",(section == "choose-file" || section == "help"));
 }
 
-function showScales() {  
+function populateScales() {  
   
-  mapOptions.chloropleth.buckets = parseInt($("select#color-chloropleth-buckets").val());
-  mapOptions.chloropleth.type = $("select#color-chloropleth-type").val();  
+  mapOptions.chloropleth.buckets = parseInt($("select#color-chloropleth-buckets").val());  
   mapOptions.chloropleth.attribute = $("select#color-chloropleth-attribute").val();
 
   var numOptions = $("select#color-chloropleth-buckets option").length;
@@ -333,16 +310,14 @@ function showScales() {
     entries.reverse();
   }
 
+  body.selectAll("div#color-chloropleth-scales div").remove();
+
   var scales = d3.select("div#color-chloropleth-scales").selectAll(".palette")
-  .data(entries);
-
-  scales.exit().remove();
-
-  if (mapOptions.chloropleth.buckets == 5) return true;
-  scales.enter().append("div");
-
-  var swatches = scales.attr("class",function(d,i) {      
-      return "palette"+(d.key == mapOptions.chloropleth.scale ? " selected" : "");
+    .data(entries)
+    .enter()
+    .append("div")
+    .attr("class",function(d,i) {      
+      return "palette"+(d.key == mapOptions.chloropleth.scaleName ? " selected" : "");
     })
     .attr("title",function(d){return d.key;})
     .attr("id",function(d){return d.key;})
@@ -352,22 +327,20 @@ function showScales() {
       if (!palette.classed("selected")) {
         d3.select(".palette.selected").attr("class","palette");
         palette.attr("class","palette selected");
-        mapOptions.chloropleth.scale = d.key;
+        mapOptions.chloropleth.scaleName = d.key;
         recolor();
       }
 
-    })      
-    .selectAll(".swatch")
-      .data(function(d){ return d.value; });
+    });
 
-  swatches.exit().remove();
-
-  swatches.enter().append("div").attr("class","swatch")
-      .style("background-color",function(d){ return d;});
+  var swatches = scales.selectAll(".swatch")
+    .data(function(d){ return d.value; })
+    .enter().append("div").attr("class","swatch")
+    .style("background-color",function(d){ return d;});
 
   if (d3.select(".palette.selected").empty()) {
     d3.select(".palette").attr("class","palette selected");
-    mapOptions.chloropleth.scale = d3.select(".palette").datum().key;
+    mapOptions.chloropleth.scaleName = d3.select(".palette").datum().key;
   }
 
   recolor();
@@ -380,7 +353,7 @@ function recolor() {
     return true;
   }
 
-  var colors = colorbrewer[mapOptions.chloropleth.type][mapOptions.chloropleth.scale][mapOptions.chloropleth.buckets];
+  var colors = colorbrewer[mapOptions.chloropleth.type][mapOptions.chloropleth.scaleName][mapOptions.chloropleth.buckets];
 
   if (mapOptions.chloropleth.type == "numeric") {  
 
@@ -394,7 +367,7 @@ function recolor() {
 
     if (!mapped.length) paths.attr("fill",mapOptions.chloropleth.default);
     else {      
-      var colorScale = d3.scale.quantize().domain(d3.extent(mapped)).range(range);
+      mapOptions.chloropleth.scale = d3.scale.quantize().domain(d3.extent(mapped)).range(range);
 
       paths.attr("fill",function(d){
         if (!d.properties || !mapOptions.chloropleth.attribute) return mapOptions.chloropleth.default;
@@ -403,7 +376,7 @@ function recolor() {
 
         if (num === null) return mapOptions.chloropleth.default;
 
-        return colorScale(num);
+        return mapOptions.chloropleth.scale(num);
               
       });
 
@@ -458,12 +431,12 @@ function setListeners() {
   });
 
   //Cancel menu actions while loading
-  body.selectAll("ul.navbar-nav a").on("click",function() {    
+  body.selectAll("div.navbar ul a").on("click",function() {    
     d3.event.preventDefault();
 
     var section = d3.select(this).attr("href").replace(/^#/,"");
 
-    if (!currentFile.name || upload.classed("loading") || body.classed("blanked") || d3.select("div#section-"+section).empty()) return true;    
+    if (!currentFile.name || upload.classed("loading") || body.classed("blanked") || d3.select("div#section-"+section).empty()) return true;
 
     showSection(section);
 
@@ -526,12 +499,15 @@ function setListeners() {
 
   $("input[name='color-type']").change(function() {
     mapOptions.colorType = $(this).val();
-    recolor();
+    d3.selectAll("div.panel-group.color-type").classed("hidden",true);
+    d3.selectAll("div#color-"+mapOptions.colorType).classed("hidden",false);
+    resetMap();
   });
 
   $("input#tooltip-toggle").change(function() {
     var checked = $(this).is(":checked");
     $("select#tooltip-attribute").attr("disabled",!checked);
+    $("span#tooltip-attribute-list").toggleClass("hidden",!checked);
     mapOptions.tooltip = checked ? $("select#tooltip-attribute").val() : false;
   });
 
@@ -539,11 +515,11 @@ function setListeners() {
     mapOptions.tooltip = $(this).val();
   });
 
-  $("select#color-chloropleth-buckets,select#color-chloropleth-type").change(showScales);
+  $("select#color-chloropleth-buckets").change(populateScales);
 
   $("select#color-chloropleth-attribute").change(function(){
     mapOptions.chloropleth.attribute = $(this).val();
-    recolor(); 
+    resetMap();
   });
 
   switchLinks.on("click",function() {
@@ -565,7 +541,7 @@ function setListeners() {
 
           //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
           //Once whole server is running on Node this won't be necessary
-          $.post("geo-to-topo.php",{geojson: JSON.stringify(currentFile.data.geo)},function(topo) {
+          $.post("geo-to-topo.php",{geojson: currentFile.data.geo},function(topo) {
             currentFile.data.topo = topo;
             setFileType(to); 
           },"json");
@@ -811,13 +787,15 @@ function fixGeo(g) {
 }
 
 function updateDownloads(type) {
+  var filebase = currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"");
+
   if (type == "svg") {
-    d3.select("a#svg-download").attr("download",currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"")+".svg").attr("href",window.URL.createObjectURL(new Blob([getSVG(currentFile.data.geo.features,currentFile.skip,mapOptions)], { "type" : "text/xml" })));  
+    body.select("a#svg-download").attr("download",filebase+".svg").attr("href",window.URL.createObjectURL(new Blob([getSVG(currentFile.data.geo.features,currentFile.skip,mapOptions)], { "type" : "text/xml" })));  
     return true;
   }
 
   if (type == "code") {
-    d3.select("a#code-download").attr("download",currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"")+".html").text(currentFile.name.replace(/[.](json|topojson|geojson|shp|zip)$/,"")+".html").attr("href",window.URL.createObjectURL(new Blob([generateCode(currentFile,mapOptions)], { "type" : "text/html" })));      
+    body.select("a#code-download").attr("download",filebase+".html").text(filebase+".html").attr("href",window.URL.createObjectURL(new Blob([generateCode(currentFile,mapOptions)], { "type" : "text/html" })));      
 
     var codeContents = generateCode(currentFile,mapOptions);
 
@@ -829,8 +807,17 @@ function updateDownloads(type) {
 
   }
 
+  if (type == "image") {
+
+    var flapjack = Pancake("map");
+    
+    body.select("a#pancake-download").attr("download",filebase+".png").attr("href",flapjack.src);
+
+    return true;
+  }
+
   var filtered = filterFeatures((currentFile.type == "topojson") ? currentFile.data.topo : currentFile.data.geo,currentFile.type,currentFile.skip);
-  d3.selectAll("a.data-download").attr("download",currentFile.name).html(currentFile.name).attr("href",window.URL.createObjectURL(new Blob([JSON.stringify(filtered)], { "type" : "application/json" })));
+  body.selectAll("a.data-download").attr("download",currentFile.name).html(currentFile.name).attr("href",window.URL.createObjectURL(new Blob([JSON.stringify(filtered)], { "type" : "application/json" })));
   return true;
 
   
@@ -939,7 +926,7 @@ function chooseDefaultProjection(data) {
     mapOptions.projectionType = "mercator";
   }
 
-  var node = inputs.projection.node();
+  var node = body.select("select#input-projection").node();
 
   for (var i = 0; i < node.options.length; i++) {
     if (node.options[i].value == mapOptions.projectionType) {
@@ -950,7 +937,7 @@ function chooseDefaultProjection(data) {
 }
 
 function uploadStart() {
-  alert.classed("hidden",true);
+  alerts.classed("hidden",true);
   upload.classed("loading",true);
   body.classed("blanked",true);
   fileStatus.classed("loading",true);
@@ -1020,9 +1007,9 @@ function setFileType(fileType) {
 
   currentFile.type = fileType;
 
-  if (currentSection == "download-code") updateDownloads("code");
+  if (currentSection == "download") updateDownloads("code");
 
-  updateDownloads("data");  
+  updateDownloads("data");
 
   fileStatus.classed("loading",false);
 
@@ -1101,8 +1088,25 @@ function zoomed() {
 function getSVG(features,skip,options) {
   var svg = '<?xml version="1.0" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg width="'+options.width+'" height="'+options.height+'" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
 
-  features.forEach(function(d,i) {
-    if (!skip || skip.indexOf(i) == -1) svg += '<path stroke-width="'+options.strokeWidth+'" stroke="'+options.stroke+'" fill="'+options.fill+'" d="'+options.path(d)+'" />';
+  if (options.colorType != "simple") {
+    var fills = [];
+    paths.each(function(d,i) {
+      fills.push(d3.select(this).attr("fill"));
+    });
+  }
+
+  features.forEach(function(d,i) {        
+
+    if (skip && skip.indexOf(i) != -1) return true;
+
+    if (options.colorType == "simple") {
+      fill = options.fill;
+    } else {
+      fill = fills[i];
+    }
+    
+    svg += '<path stroke-width="'+options.strokeWidth+'" stroke="'+options.stroke+'" fill="'+fill+'" d="'+options.path(d)+'" />';
+
   });
 
   svg += '</svg>';
