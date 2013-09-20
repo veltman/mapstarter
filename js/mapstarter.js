@@ -41,7 +41,7 @@ var mapOptions = {
   fill: "steelblue",
   highlight: "tomato",  
   colorType: "simple",
-  chloropleth: {buckets: 3, type: "numeric", scaleName: "YlGn", scale: d3.scale.quantize(), reverse: false, attribute: null, map: {}, default: "#999"},
+  chloropleth: {buckets: 3, type: "numeric", scaleName: "YlGn", scale: d3.scale.quantize(), reverse: false, attribute: null, map: {}, default: "#999", attributeProblem: false},
   zoomMode: "feature",
   responsive: false,
   tooltip: false
@@ -56,6 +56,29 @@ var zoom = d3.behavior.zoom().scaleExtent([1, Infinity])
         zoomed();
       }      
     });
+
+var messages = {
+  "no-file": {
+    "type": "error",
+    "text": "No drag-and-drop file received."
+  },
+  "invalid-file": {
+    "type": "error",
+    "text": "Invalid file.  If you're submitting a shapefile, make sure you submit the .shp file, or a .zip file containing it."
+  },
+  "no-dbf": {
+    "type": "warn",
+    "text": "Your map won't include any feature attributes (like names).  Either your data has none, or you didn't upload the .dbf file stored in the shapefile.  To include those attributes, make sure you submit both the .shp and .dbf file, or a .zip file containing both."
+  },
+  "bad-albers": {
+    "type": "warn",
+    "text": "The Albers USA projection should only be used if your map is of the entire US, including Alaska and Hawaii. It will fail with any other geography."
+  },
+  "non-numeric": {
+    "type": "warn",
+    "text": "Some of the data in the attribute you're using for the color scale is non-numeric or empty, it will be given the default color instead.  To inspect the data, use the Data tab."
+  }
+};
 
 $(document).ready(function() {
 
@@ -144,7 +167,6 @@ function loaded(newFile) {
           });
 
           $("select.attribute-list").append($("<option />").val(a).text(a));          
-          //$("select#color-chloropleth-attribute").append($("<option />").val(a).text(a));          
           populateScales();
       });
 
@@ -226,6 +248,8 @@ function loaded(newFile) {
           tooltip.text("").attr("class","hidden");
       });
       
+      resetOptions();
+
       recolor();
       
       //Draw the map
@@ -234,26 +258,17 @@ function loaded(newFile) {
       uploadComplete();
 
       //Send them to the size/projection page first
-      showSection("size");
+      showSection("size",true);
 
 }
 
 //Throw an error message
 function msg(key) {
 
-  var messages = {
-    "nofile": {
-      "type": "error",
-      "text": "No drag-and-drop file received."
-    },
-    "invalidfile": {
-      "type": "error",
-      "text": "No drag-and-drop file received."
-    },
-  }
+  msgClear(key);
 
   var a = alerts.append("div")
-    .attr("class","alert "+messages[key].type)
+    .attr("class","alert "+messages[key].type+" "+key)
     .text(messages[key].text);
     
   a.append("span")
@@ -261,20 +276,24 @@ function msg(key) {
     .html("&times;")
     .on("click",function() {
       a.remove();
-    });
-
-  upload.classed("loading",false);
+    });  
           
 }
 
+function msgClear(key) {
+  alerts.selectAll("div."+key).remove();
+}
+
 //nav function for showing/hiding sections, generating stuff as needed
-function showSection(section) {
+//by default, errors/warnings will be cleared when switching sections, but can be forced to preserve
+function showSection(section,preserveAlerts) {
+  if (section == currentSection) return true;
   currentSection = section;
   $("div.navbar ul li").removeClass("active");
   $("li#"+section).addClass("active");
   $("div.mapstarter-section").addClass("hidden");
   $("div#section-"+section).removeClass("hidden");
-  alerts.classed("hidden",true);
+  if (!preserveAlerts) alerts.selectAll("div").remove();
 
   if (currentFile && currentFile.name) resetMap();
 
@@ -346,8 +365,10 @@ function populateScales() {
   recolor();
 }
 
-
 function recolor() {
+
+  mapOptions.chloropleth.attributeProblem = false;
+
   if (mapOptions.colorType == "simple") {
     paths.attr("fill",mapOptions.fill);
     return true;
@@ -363,14 +384,21 @@ function recolor() {
       }).filter(function(d) {return d !== null;});
 
     var range = d3.range(mapOptions.chloropleth.buckets).map(function(i) { return colors[i]; });
-    if (mapOptions.chloropleth.reverse) range.reverse();
+    if (mapOptions.chloropleth.reverse) range.reverse();    
 
-    if (!mapped.length) paths.attr("fill",mapOptions.chloropleth.default);
-    else {      
+    if (!mapped.length) {
+      mapOptions.chloropleth.attributeProblem = true;
+      paths.attr("fill",mapOptions.chloropleth.default);      
+    } else {      
       mapOptions.chloropleth.scale = d3.scale.quantize().domain(d3.extent(mapped)).range(range);
 
+      
+
       paths.attr("fill",function(d){
-        if (!d.properties || !mapOptions.chloropleth.attribute) return mapOptions.chloropleth.default;
+        if (!d.properties || !mapOptions.chloropleth.attribute) {
+          mapOptions.chloropleth.attributeProblem = true;
+          return mapOptions.chloropleth.default;
+        }
 
         var num = parseNumber(d.properties[mapOptions.chloropleth.attribute]);
 
@@ -386,6 +414,7 @@ function recolor() {
 
     paths.attr("fill",function(d){
       if (!mapOptions.chloropleth.attribute || !(mapOptions.chloropleth.attribute in d.properties) || !(d.properties[mapOptions.chloropleth.attribute] in mapOptions.chloropleth.map)) {
+        mapOptions.chloropleth.attributeProblem = true;
         return mapOptions.chloropleth.default;
       }
 
@@ -397,6 +426,23 @@ function recolor() {
   
 }
 
+//Reset certain options when a new file is added
+function resetOptions() {
+      
+  //Set color scheme to simple
+  $("input#color-type-simple").prop("checked",true);
+  $("input#color-type-chloropleth").prop("checked",false);
+  mapOptions.colorType = "simple";
+  d3.selectAll("div.panel-group.color-type").classed("hidden",true);
+  d3.selectAll("div#color-"+mapOptions.colorType).classed("hidden",false);
+
+  //Turn off tooltip
+  $("input#tooltip-toggle").prop("checked",false);
+  $("select#tooltip-attribute").prop("disabled",true);
+  $("span#tooltip-attribute-list").toggleClass("hidden",true);
+  mapOptions.tooltip = false;
+  
+}
 
 
 
@@ -426,7 +472,8 @@ function setListeners() {
     if (d3.event.dataTransfer.files.length) {
       readFiles(d3.event.dataTransfer.files);      
     } else {
-      msg("nofile");
+      msg("no-file");
+      uploadComplete();
     }
   });
 
@@ -485,11 +532,23 @@ function setListeners() {
 
   $("#input-projection").change(function() {        
     mapOptions.projectionType = $(this).val();
+
+    //Error check for bad albersUsa usage
+    if (mapOptions.projectionType == "albersUsa") {
+      var a = d3.geo.area(currentFile.data.geo),
+        b = d3.geo.bounds(currentFile.data.geo);
+      if (!isUSA(a,b)) msg("bad-albers");
+      else msgClear("bad-albers");
+
+    } else {
+      msgClear("bad-albers");
+    }
+
     scaleMap();  
   });
 
   $("input#responsive").change(function() {
-    mapOptions.responsive = $(this).is(':checked');
+    mapOptions.responsive = $(this).prop("checked");
   });
 
   $("input[name='zoom']").change(function() {
@@ -498,15 +557,18 @@ function setListeners() {
   });
 
   $("input[name='color-type']").change(function() {
-    mapOptions.colorType = $(this).val();
+    mapOptions.colorType = $(this).val();    
     d3.selectAll("div.panel-group.color-type").classed("hidden",true);
     d3.selectAll("div#color-"+mapOptions.colorType).classed("hidden",false);
-    resetMap();
+    resetMap();    
+
+    if (mapOptions.colorType == "chloropleth" && mapOptions.chloropleth.attributeProblem) msg("non-numeric");
+    else msgClear("non-numeric");
   });
 
   $("input#tooltip-toggle").change(function() {
-    var checked = $(this).is(":checked");
-    $("select#tooltip-attribute").attr("disabled",!checked);
+    var checked = $(this).prop("checked");
+    $("select#tooltip-attribute").prop("disabled",!checked);
     $("span#tooltip-attribute-list").toggleClass("hidden",!checked);
     mapOptions.tooltip = checked ? $("select#tooltip-attribute").val() : false;
   });
@@ -520,7 +582,15 @@ function setListeners() {
   $("select#color-chloropleth-attribute").change(function(){
     mapOptions.chloropleth.attribute = $(this).val();
     resetMap();
+
+    if (mapOptions.colorType == "chloropleth" && mapOptions.chloropleth.attributeProblem) msg("non-numeric");
+    else msgClear("non-numeric");
   });
+
+  $("input#color-chloropleth-default").change(function(){        
+    mapOptions.chloropleth.default = $(this).val();
+    resetMap();
+  });  
 
   switchLinks.on("click",function() {
     if (!upload.classed("loading") && !fileStatus.classed("loading")) {
@@ -541,7 +611,7 @@ function setListeners() {
 
           //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
           //Once whole server is running on Node this won't be necessary
-          $.post("geo-to-topo.php",{geojson: currentFile.data.geo},function(topo) {
+          $.post("geo-to-topo.php",{geojson: JSON.stringify(currentFile.data.geo)},function(topo) {
             currentFile.data.topo = topo;
             setFileType(to); 
           },"json");
@@ -598,7 +668,7 @@ function readFiles(files) {
     if (shp.length == 1 && dbf.length <= 1) {      
       multiFile(shp[0],dbf[0]);
     } else {
-      msg("invalidfile");
+      msg("invalid-file");
       uploadComplete();   
       return false;
     }
@@ -633,7 +703,6 @@ function singleFile(file) {
       }            
                 
     } catch(err) {  
-      console.log(err);       
       singleShapefile(file);                     
       return false;            
     }                  
@@ -654,7 +723,7 @@ function multiFile(shp,dbf) {
     var formData = new FormData();
     formData.append('shp', shp);
     if (dbf) formData.append('dbf', dbf);
-
+    else msg("no-dbf");
 
     //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
     //Once whole server is running on Node this won't be necessary
@@ -664,7 +733,7 @@ function multiFile(shp,dbf) {
         var newFile = {name: shp.name.replace(/[.]shp$/i,".geojson"), size: response.responseText.length, data: {topo: null, geo: fixGeo(JSON.parse(response.responseText))}, type: "geojson"};
       } catch(err) {
         if (currentFile.name) body.classed("blanked",false);
-        msg("invalidfile");
+        msg("invalid-file");
         uploadComplete();
         return false;
       }
@@ -916,11 +985,14 @@ function oppositeColor(color) {
 function chooseDefaultProjection(data) {
   //d3.select("select#input-projection")
   var a = d3.geo.area(data),
-    b = d3.geo.bounds(data);
+    b = d3.geo.bounds(data),
+    c = d3.geo.centroid(data);
 
-  if (a > 0.21 && a < 0.24 && b[0][0] > 170 && b[0][0] < 174 && b[0][1] > 15 && b[0][1] < 19 && b[1][0] > -67 && b[1][0] < -61 && b[1][1] > 68 && b[1][1] < 74) {
+  if (isUSA(a,b)) {
     mapOptions.projectionType = "albersUsa";
-  } else if (b[0][0] > b[1][0]) {
+  
+  
+  } else if (isWrapAround(b,c)) {
     mapOptions.projectionType = "conicEqualArea";
   } else {
     mapOptions.projectionType = "mercator";
@@ -936,11 +1008,22 @@ function chooseDefaultProjection(data) {
   }
 }
 
+//Rough guess at a whole US map with AK and HI
+function isUSA(a,b) {
+  return (a > 0.21 && a < 0.24 && b[0][0] > 170 && b[0][0] < 174 && b[0][1] > 15 && b[0][1] < 19 && b[1][0] > -67 && b[1][0] < -61 && b[1][1] > 68 && b[1][1] < 74);
+}
+
+//Attempt to detect bounds that cross IDL but aren't entire world
+//If the SW lng is greater than the NE lng, crosses the IDL
+//If the centroid is east of the SW lng or west of the NE lng, it's not a wraparound world map type situation
+function isWrapAround(b,c) {
+  return (b[0][0] > b[1][0] && c[0] > (b[0][0] > 0 ? -(360-b[0][0]) : b[0][0]) && c[0] < (b[1][0] > 0 ? -(360-b[1][0]) : b[1][0]));
+}
+
 function uploadStart() {
-  alerts.classed("hidden",true);
+  alerts.selectAll("div").remove();
   upload.classed("loading",true);
-  body.classed("blanked",true);
-  fileStatus.classed("loading",true);
+  body.classed("blanked",true);  
 }
 
 function uploadComplete() {  
@@ -968,9 +1051,25 @@ function singleShapefile(file) {
     d3.xhr("shp-to-geo.php").post(formData,function(error,response) {          
       try {
         var newFile = {name: file.name.replace(/[.](shp|zip)$/i,".geojson"), size: response.responseText.length, data: {topo: null, geo: fixGeo(JSON.parse(response.responseText))}, type: "geojson"};
+
+        var hasDbf = false;
+
+        //My first JavaScript label!
+        dbfCheck:
+        for (var i = 0; i < newFile.data.geo.features.length; i++) {
+          if ("properties" in newFile.data.geo.features[i]) {
+            for (var p in newFile.data.geo.features[i].properties) {
+              hasDbf = true;
+              break dbfCheck;
+            }
+          }
+        }
+
+        if (!hasDbf) msg("no-dbf");
+
       } catch(err) {
         if (currentFile.name) body.classed("blanked",false);
-        msg("invalidfile");
+        msg("invalid-file");
         uploadComplete();
         return false;
       }
@@ -984,7 +1083,8 @@ function singleShapefile(file) {
 
   } else {
     if (currentFile.name) body.classed("blanked",false);
-    msg("invalidfile");      
+    msg("invalid-file");
+    uploadComplete();    
 
   }
 }

@@ -97,11 +97,47 @@ div.panel {
   padding: 12px 16px;
 }
 
-/* HEADER */
-
-div.navbar {
-  
+div.loading {
+  text-align: center;
 }
+
+div.loading-bar {
+  background: url('loading-bar.gif') no-repeat center center;
+  height: 24px;
+}
+
+div#alerts > div {
+  margin-top: 12px;
+  border: 1px solid #ccc;
+  padding: 8px 16px;
+  position: relative;
+  font-size: 13px;
+  color: #000;
+}
+
+div#alerts > div.warn {
+  background-color: #fff1b8;    
+}
+
+div#alerts > div.error {  
+  background-color: #f5cccc;
+}
+
+div#alerts > div span.alert-close {
+  position: absolute;
+  top: 0px;
+  right: 4px;  
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+div#alerts > div span.alert-close:hover {
+  opacity: 1;
+}
+
+/* HEADER */
 
 div.navbar div.container {
   background-color: #f8f8f8;  
@@ -318,10 +354,6 @@ pre code {
   background-color: #fff;
   background-repeat: no-repeat;
   background-position: center center;
-}
-
-#map-box.loading {
-  background-image: url('loading-map.gif');
 }
 
 g#features path {
