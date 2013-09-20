@@ -103,6 +103,9 @@ $(document).ready(function() {
 
   setListeners();
 
+  d3.select("div#page-loaded").classed("hidden",false);
+  d3.select("div#page-loading").remove();
+
 });
 
 
@@ -134,7 +137,7 @@ function loaded(newFile) {
       attributesColumns = set.values().sort(function(a,b) {
         if (a.toLowerCase() == "id") return -1;
         if (b.toLowerCase() == "name") return -1;        
-        return 0; 
+        return 0;
       });
 
       attributesTable.classed("hidden",!attributesColumns.length);
@@ -156,7 +159,10 @@ function loaded(newFile) {
       $("select#tooltip-attribute option,select#color-chloropleth-attribute option").remove();
 
       //Stringify any non-primitive data values
-      attributesColumns.forEach(function(a) {
+      attributesColumns.forEach(function(a,i) {
+
+        if (!i) mapOptions.chloropleth.attribute = a;
+
         attributesRows.append("td")
           .text(function(d) {
             if (a in d.properties) {              
@@ -166,9 +172,10 @@ function loaded(newFile) {
             return "";
           });
 
-          $("select.attribute-list").append($("<option />").val(a).text(a));          
-          populateScales();
+          $("select.attribute-list").append($("<option />").val(a).text(a));
       });
+
+      populateScales();
 
       //Populate the attribute table
       attributesHeader.selectAll("th").remove();
@@ -249,8 +256,6 @@ function loaded(newFile) {
       });
       
       resetOptions();
-
-      recolor();
       
       //Draw the map
       scaleMap();      
@@ -311,35 +316,20 @@ function populateScales() {
   mapOptions.chloropleth.buckets = parseInt($("select#color-chloropleth-buckets").val());  
   mapOptions.chloropleth.attribute = $("select#color-chloropleth-attribute").val();
 
-  var numOptions = $("select#color-chloropleth-buckets option").length;
-
-  if (mapOptions.chloropleth.type == "numeric" && numOptions > 9) {    
-    $("select#color-chloropleth-buckets option:gt(8)").remove();
-  } else if (mapOptions.chloropleth.type == "categories" && numOptions < 10) {
-    $("select#color-chloropleth-buckets").append($("<option />").val("12").text("12"));
-  }
-
   var entries = d3.entries(colorbrewer[mapOptions.chloropleth.type]).filter(function(d) {
       return d.value[mapOptions.chloropleth.buckets];
-    }).map(function(d) {
-      return {key: d.key, value: d.value[mapOptions.chloropleth.buckets]};
+    }).map(function(d) {      
+      return {key: d.key, value: (mapOptions.chloropleth.reverse ? d.value[mapOptions.chloropleth.buckets].slice(0).reverse() : d.value[mapOptions.chloropleth.buckets])};
     });
 
-  if (mapOptions.chloropleth.type == "numeric" && mapOptions.chloropleth.reverse) {
-    entries.reverse();
-  }
-
-  body.selectAll("div#color-chloropleth-scales div").remove();
+  body.selectAll("div#color-chloropleth-scales div").remove();  
 
   var scales = d3.select("div#color-chloropleth-scales").selectAll(".palette")
     .data(entries)
     .enter()
     .append("div")
-    .attr("class",function(d,i) {      
-      return "palette"+(d.key == mapOptions.chloropleth.scaleName ? " selected" : "");
-    })
-    .attr("title",function(d){return d.key;})
-    .attr("id",function(d){return d.key;})
+    .attr("class","palette")    
+    .attr("title",function(d){return d.key;})    
     .on("click",function(d) {
 
       var palette = d3.select(this);
@@ -352,6 +342,8 @@ function populateScales() {
 
     });
 
+  scales.classed("selected",function(d) { return (d.key == mapOptions.chloropleth.scaleName); });
+
   var swatches = scales.selectAll(".swatch")
     .data(function(d){ return d.value; })
     .enter().append("div").attr("class","swatch")
@@ -362,7 +354,6 @@ function populateScales() {
     mapOptions.chloropleth.scaleName = d3.select(".palette").datum().key;
   }
 
-  recolor();
 }
 
 function recolor() {
@@ -376,49 +367,33 @@ function recolor() {
 
   var colors = colorbrewer[mapOptions.chloropleth.type][mapOptions.chloropleth.scaleName][mapOptions.chloropleth.buckets];
 
-  if (mapOptions.chloropleth.type == "numeric") {  
+  if (mapOptions.chloropleth.reverse) colors.reverse();
 
-    var mapped = filterFeatures(currentFile.data.geo,"geojson",currentFile.skip).features.map(function(d) {
-        if (!(mapOptions.chloropleth.attribute in d.properties)) return null;
-        return parseNumber(d.properties[mapOptions.chloropleth.attribute]);
-      }).filter(function(d) {return d !== null;});
+  var mapped = filterFeatures(currentFile.data.geo,"geojson",currentFile.skip).features.map(function(d) {
+      if (!(mapOptions.chloropleth.attribute in d.properties)) return null;
+      return parseNumber(d.properties[mapOptions.chloropleth.attribute]);
+    }).filter(function(d) {return d !== null;});
 
-    var range = d3.range(mapOptions.chloropleth.buckets).map(function(i) { return colors[i]; });
-    if (mapOptions.chloropleth.reverse) range.reverse();    
+  var range = d3.range(mapOptions.chloropleth.buckets).map(function(i) { return colors[i]; });
+  if (mapOptions.chloropleth.reverse) range.reverse();    
 
-    if (!mapped.length) {
-      mapOptions.chloropleth.attributeProblem = true;
-      paths.attr("fill",mapOptions.chloropleth.default);      
-    } else {      
-      mapOptions.chloropleth.scale = d3.scale.quantize().domain(d3.extent(mapped)).range(range);
-
-      
-
-      paths.attr("fill",function(d){
-        if (!d.properties || !mapOptions.chloropleth.attribute) {
-          mapOptions.chloropleth.attributeProblem = true;
-          return mapOptions.chloropleth.default;
-        }
-
-        var num = parseNumber(d.properties[mapOptions.chloropleth.attribute]);
-
-        if (num === null) return mapOptions.chloropleth.default;
-
-        return mapOptions.chloropleth.scale(num);
-              
-      });
-
-    }
-
-  } else {
-
+  if (!mapped.length) {
+    mapOptions.chloropleth.attributeProblem = true;
+    paths.attr("fill",mapOptions.chloropleth.default);      
+  } else {      
+    mapOptions.chloropleth.scale = d3.scale.quantize().domain(d3.extent(mapped)).range(range);
+    
     paths.attr("fill",function(d){
-      if (!mapOptions.chloropleth.attribute || !(mapOptions.chloropleth.attribute in d.properties) || !(d.properties[mapOptions.chloropleth.attribute] in mapOptions.chloropleth.map)) {
+      if (!d.properties || !mapOptions.chloropleth.attribute) {
         mapOptions.chloropleth.attributeProblem = true;
         return mapOptions.chloropleth.default;
       }
 
-      return mapOptions.chloropleth.map[d];
+      var num = parseNumber(d.properties[mapOptions.chloropleth.attribute]);
+
+      if (num === null) return mapOptions.chloropleth.default;
+
+      return mapOptions.chloropleth.scale(num);
             
     });
 
@@ -560,7 +535,7 @@ function setListeners() {
     mapOptions.colorType = $(this).val();    
     d3.selectAll("div.panel-group.color-type").classed("hidden",true);
     d3.selectAll("div#color-"+mapOptions.colorType).classed("hidden",false);
-    resetMap();    
+    resetMap();
 
     if (mapOptions.colorType == "chloropleth" && mapOptions.chloropleth.attributeProblem) msg("non-numeric");
     else msgClear("non-numeric");
@@ -577,7 +552,10 @@ function setListeners() {
     mapOptions.tooltip = $(this).val();
   });
 
-  $("select#color-chloropleth-buckets").change(populateScales);
+  $("select#color-chloropleth-buckets").change(function() {
+    populateScales();
+    recolor();
+  });
 
   $("select#color-chloropleth-attribute").change(function(){
     mapOptions.chloropleth.attribute = $(this).val();
@@ -590,7 +568,13 @@ function setListeners() {
   $("input#color-chloropleth-default").change(function(){        
     mapOptions.chloropleth.default = $(this).val();
     resetMap();
-  });  
+  });
+
+  $("input#color-chloropleth-reverse").change(function(){        
+    mapOptions.chloropleth.reverse = $(this).prop("checked");
+    populateScales();
+    resetMap();
+  });
 
   switchLinks.on("click",function() {
     if (!upload.classed("loading") && !fileStatus.classed("loading")) {
@@ -864,9 +848,9 @@ function updateDownloads(type) {
   }
 
   if (type == "code") {
-    body.select("a#code-download").attr("download",filebase+".html").text(filebase+".html").attr("href",window.URL.createObjectURL(new Blob([generateCode(currentFile,mapOptions)], { "type" : "text/html" })));      
-
     var codeContents = generateCode(currentFile,mapOptions);
+
+    body.select("a#code-download").attr("download",filebase+".html").text(filebase+".html").attr("href",window.URL.createObjectURL(new Blob([codeContents], { "type" : "text/html" })));      
 
     code.text(codeContents);
             

@@ -37,26 +37,30 @@
     </div>
     
     <div class="container mapstarter-section unblankable" id="section-choose-file">            
-      <div id="upload-target">
-          <div class="loaded">
-            <div>Drag a shapefile, GeoJSON, or TopoJSON file here, or click to select one</div>            
-          </div>
-          <div class="loading">
-            <div>Processing the data, this may take a moment...</div>
-            <div class="loading-bar"></div>
-          </div>
+      <div id="page-loaded" class="hidden">
+        <div id="upload-target">
+            <div class="loaded">
+              <div>Drag a shapefile, GeoJSON, or TopoJSON file here, or click to select one</div>            
+            </div>
+            <div class="loading">
+              <div>Processing the data, this may take a moment...</div>
+              <div class="loading-bar"></div>
+            </div>
+        </div>      
+        <input type="file" id="upload-file" style="display: none;" multiple />
+        <div>
+          <strong>or try a sample file:</strong>
+          <a href="#ca.json" class="sample-data">CA congressional districts</a>
+          <a href="#us-states.json" class="sample-data">US states</a>
+          <a href="#canada.json" class="sample-data">Canadian provinces</a>
+          <a href="#nyc.json" class="sample-data">NYC boroughs</a>
+          <a href="#africa.json" class="sample-data">Africa</a>
+          <a href="#southamerica.json" class="sample-data">South America</a>
+        </div>      
       </div>
-      <input type="file" id="upload-file" style="display: none;" multiple />
-      <div>
-        <strong>or try a sample file:</strong>
-        <a href="#ca.json" class="sample-data">CA congressional districts</a>
-        <a href="#us-states.json" class="sample-data">US states</a>
-        <a href="#canada.json" class="sample-data">Canadian provinces</a>
-        <a href="#nyc.json" class="sample-data">NYC boroughs</a>
-        <a href="#africa.json" class="sample-data">Africa</a>
-        <a href="#southamerica.json" class="sample-data">South America</a>
-      </div>      
-    
+      <div id="page-loading">
+        <div class="loading-bar"></div>
+      </div>
       <h2>Mapstarter is a tool for turning a geographic data file into a map for the web.</h2>
       <p><em>This is a work in progress.  Got ideas?  Requests?  Complaints?  Data files that didn't work?  <a href="mailto:noah@noahveltman.com">Let me know</a>.</em></p>
       <h3>How does it work?</h3>
@@ -211,7 +215,7 @@
                   <select id="color-chloropleth-attribute" class="attribute-list"></select>
                 </span>                          
                 <span class="form-item">
-                  <label for="color-chloropleth-buckets">Number of color buckets</label>
+                  <label for="color-chloropleth-buckets"># of colors</label>
                   <select id="color-chloropleth-buckets">
                     <option value="3">3</option>
                     <option value="4">4</option>
@@ -225,9 +229,13 @@
                   </select>
                 </span>
                 <span class="form-item">
-                  <label for="color-chloropleth-default">Default (for blank/non-numeric values)</label>
+                  <label for="color-chloropleth-default">Default (blank/non-numeric values)</label>
                   <input type="color" class="text" id="color-chloropleth-default" value="#999999" />
-                </span>                
+                </span>
+                <span class="form-item">                                    
+                  <label for="color-chloropleth-reverse">Reverse?</label>
+                  <input type="checkbox" id="color-chloropleth-reverse" value="yes" />
+                </span>  
               </div>
               <div>
                 <div class="panel-header">Color Scale</div>                

@@ -14,7 +14,7 @@ function generateCode(file,options) {
         'path {',
         function() { if (options.strokeWidth > 0) return '  stroke-width: '+options.strokeWidth+'px;'; return null; },
         function() { if (options.strokeWidth > 0) return '  stroke: '+options.stroke+';'; return '  stroke: none;' },
-        function() { if (options.colorType == "simple") return '  fill: '+options.fill+';'; return null; },
+        function() { if (options.colorType == "simple") return '  fill: '+options.fill+';'; return '  fill: '+options.chloropleth.default+';'; },
         '  cursor: pointer;',
         '}',
         ''
@@ -30,6 +30,7 @@ function generateCode(file,options) {
     } else if (options.colorType == "chloropleth") {
         var domain = options.chloropleth.scale.domain();
         var range = options.chloropleth.scale.range();
+
         range.forEach(function(d,i) {
             codeLines = codeLines.concat([
                 'path.q'+i+'-'+range.length+' {',
@@ -173,7 +174,7 @@ function generateCode(file,options) {
                 a = 'd.properties.'+options.chloropleth.attribute;
             }             
 
-            return '    .attr("class", function(d) { return color('+a+'); })';
+            return '    .attr("class", function(d) { return (typeof color('+a+') == "string" ? color('+a+') : ""); })';
         },
         function() { if (options.tooltip) return '    .on("mouseover",showTooltip)'; return null; },
         function() { if (options.tooltip) return '    .on("mousemove",moveTooltip)'; return null; },
@@ -241,8 +242,8 @@ function generateCode(file,options) {
                 '',
                 '//Update map on zoom/pan',
                 'function zoomed() {',
-                '  features.attr("transform", "translate(" + zoom.translate() + ")scale(" + zoom.scale() + ")");',
-                '  paths.attr("stroke-width", '+options.strokeWidth+' / zoom.scale() + "px" );',
+                '  features.attr("transform", "translate(" + zoom.translate() + ")scale(" + zoom.scale() + ")")',
+                '      .selectAll("path").style("stroke-width", '+options.strokeWidth+' / zoom.scale() + "px" );',
                 '}',
                 ''                
             ]);
@@ -262,9 +263,9 @@ function generateCode(file,options) {
             '  tooltip.style("display","block")',
             function() {               
                 if (!options.tooltip.match(/^[$_A-Za-z][$_A-Za-z0-9]+$/)) {
-                    return '      .text(d["'+options.tooltip.replace('"','\"')+'"]);'
+                    return '      .text(d.properties["'+options.tooltip.replace('"','\"')+'"]);'
                 }
-                return '      .text(d.'+options.tooltip+');';                    
+                return '      .text(d.properties.'+options.tooltip+');';                    
             },
             '}',
             '',
