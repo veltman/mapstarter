@@ -207,8 +207,8 @@ function loaded(newFile) {
             var isDeleted = d3.select("tr#tr"+i).classed("deleted");            
             if (isDeleted) {
               d3.select(this).html('<span>&times;</span>&nbsp;Remove').attr("title","Remove this feature");              
-              if (currentFile.skip.indexOf(i) != -1) currentFile.skip = currentFile.skip.splice(currentFile.skip.indexOf(i),1);
-            } else {
+              currentFile.skip = currentFile.skip.filter(function(s) { return s != i;});
+            } else {              
               d3.select(this).html('<span>+</span>&nbsp;Restore').attr("title","Restore this feature");              
               if (currentFile.skip.indexOf(i) == -1) currentFile.skip.push(i);
             }
@@ -259,6 +259,8 @@ function loaded(newFile) {
       
       //Draw the map
       scaleMap();      
+
+      recolor();
 
       uploadComplete();
 
@@ -356,7 +358,10 @@ function populateScales() {
 
 }
 
-function recolor() {
+//Get the color scale from Colorbrewer, flip it if "Reverse" is on, set the domain based on the
+//attribute selected, set the range to the color set.  Check to make sure there are some numeric values,
+//otherwise throw a warning
+function recolor(from) {    
 
   mapOptions.chloropleth.attributeProblem = false;
 
@@ -365,24 +370,22 @@ function recolor() {
     return true;
   }
 
-  var colors = colorbrewer[mapOptions.chloropleth.type][mapOptions.chloropleth.scaleName][mapOptions.chloropleth.buckets];
+  var colors = colorbrewer[mapOptions.chloropleth.type][mapOptions.chloropleth.scaleName][mapOptions.chloropleth.buckets].slice(0);
 
   if (mapOptions.chloropleth.reverse) colors.reverse();
 
   var mapped = filterFeatures(currentFile.data.geo,"geojson",currentFile.skip).features.map(function(d) {
       if (!(mapOptions.chloropleth.attribute in d.properties)) return null;
       return parseNumber(d.properties[mapOptions.chloropleth.attribute]);
-    }).filter(function(d) {return d !== null;});
-
-  var range = d3.range(mapOptions.chloropleth.buckets).map(function(i) { return colors[i]; });
-  if (mapOptions.chloropleth.reverse) range.reverse();    
+    }).filter(function(d) {return d !== null;});  
 
   if (!mapped.length) {
     mapOptions.chloropleth.attributeProblem = true;
-    paths.attr("fill",mapOptions.chloropleth.default);      
-  } else {      
-    mapOptions.chloropleth.scale = d3.scale.quantize().domain(d3.extent(mapped)).range(range);
-    
+    paths.attr("fill",mapOptions.chloropleth.default);
+    mapOptions.chloropleth.scale = d3.scale.quantize().domain([0,1]).range(colors);
+  } else {              
+    mapOptions.chloropleth.scale = d3.scale.quantize().domain(d3.extent(mapped)).range(colors);
+
     paths.attr("fill",function(d){
       if (!d.properties || !mapOptions.chloropleth.attribute) {
         mapOptions.chloropleth.attributeProblem = true;
@@ -536,6 +539,7 @@ function setListeners() {
     d3.selectAll("div.panel-group.color-type").classed("hidden",true);
     d3.selectAll("div#color-"+mapOptions.colorType).classed("hidden",false);
     resetMap();
+    recolor();
 
     if (mapOptions.colorType == "chloropleth" && mapOptions.chloropleth.attributeProblem) msg("non-numeric");
     else msgClear("non-numeric");
@@ -560,6 +564,7 @@ function setListeners() {
   $("select#color-chloropleth-attribute").change(function(){
     mapOptions.chloropleth.attribute = $(this).val();
     resetMap();
+    recolor();
 
     if (mapOptions.colorType == "chloropleth" && mapOptions.chloropleth.attributeProblem) msg("non-numeric");
     else msgClear("non-numeric");
@@ -568,12 +573,14 @@ function setListeners() {
   $("input#color-chloropleth-default").change(function(){        
     mapOptions.chloropleth.default = $(this).val();
     resetMap();
+    recolor();
   });
 
   $("input#color-chloropleth-reverse").change(function(){        
     mapOptions.chloropleth.reverse = $(this).prop("checked");
     populateScales();
     resetMap();
+    recolor();
   });
 
   switchLinks.on("click",function() {
@@ -890,8 +897,6 @@ function prettySize(size) {
 //Update the map projection, auto-setting parallels or centers based on data
 function updateProjection(data,width,height) {                          
 
-  resetMap();
-
   //Projection at unit scale
   mapOptions.projection = d3.geo[mapOptions.projectionType]()
       .scale(1)
@@ -1117,12 +1122,10 @@ function scaleMap() {
 }
 
 //Remove any applied transforms
-function resetMap() {
-  
+function resetMap(from) {
+
   paths.classed("clicked", false)    
     .attr("stroke-width", mapOptions.strokeWidth + "px");
-
-  recolor();  
 
   features.attr("transform", null);
 }
