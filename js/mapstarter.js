@@ -479,7 +479,7 @@ function setListeners() {
     
   //When that input changes, attempt to read the file
   $uploadFile.on("change",function() {
-    if ($(this)[0].files.length) {      
+    if ($(this)[0].files.length) {
       readFiles($(this)[0].files);      
     }
   });
@@ -652,7 +652,7 @@ function setListeners() {
           //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
           //Once whole server is running on Node this won't be necessary
           $.post("geo-to-topo.php",{geojson: JSON.stringify(currentFile.data.geo)},function(topo) {
-            currentFile.data.topo = topo;
+            currentFile.data.topo = fixTopo(topo);
             setFileType(to); 
           },"json");
 
@@ -730,8 +730,8 @@ function singleFile(file) {
       newFile.type = jsonType(d);
 
       if (newFile.type == "topojson") {
-        newFile.data.topo = d;
-        newFile.data.geo = fixGeo(topojson.feature(d, d.objects[getObjectName(d)]));
+        newFile.data.topo = fixTopo(d);
+        newFile.data.geo = fixGeo(topojson.feature(newFile.data.topo, newFile.data.topo.objects[getObjectName(newFile.data.topo)]));
       } else {
         newFile.data.geo = fixGeo(d);
       }
@@ -892,6 +892,20 @@ function fixGeo(g) {
   if (g.type == "Feature") return {type: "FeatureCollection", features: [g]};
 
   return {type: "FeatureCollection", features: [{type: "Feature", geometry: g, properties: {}}]};
+
+}
+
+//Needs a geometry collection, single-element topologies will break it
+function fixTopo(t) {
+  console.log(t);
+  for (var i in t.objects) {
+    if (t.objects[i].type != "GeometryCollection") {
+      t.objects[i].id = 1;
+      t.objects[i] = {type: "GeometryCollection", geometries: [t.objects[i]]};
+    }
+  }
+  
+  return t;
 
 }
 
