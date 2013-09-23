@@ -120,8 +120,6 @@ function loaded(newFile) {
 
       if (!currentFile.skip) currentFile.skip = [];
 
-      currentFile.edits = [];
-
       switchLinks.datum(currentFile.type == "geojson" ? "topojson" : "geojson");
 
       //Choose a projection based on the data
@@ -927,7 +925,7 @@ function updateDownloads(type) {
     return true;
   }
 
-  var filtered = filterFeatures((currentFile.type == "topojson") ? currentFile.data.topo : currentFile.data.geo,currentFile.type,currentFile.skip,currentFile.edits);
+  var filtered = filterFeatures((currentFile.type == "topojson") ? currentFile.data.topo : currentFile.data.geo,currentFile.type);
   body.selectAll("a.data-download").attr("download",currentFile.name).html(currentFile.name).attr("href",window.URL.createObjectURL(new Blob([JSON.stringify(filtered)], { "type" : "application/json" })));
   return true;
 
