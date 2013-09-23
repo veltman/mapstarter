@@ -81,7 +81,7 @@
       <p><strong>Web developers</strong> who want to get a sensible starting template without a copy/paste scavenger hunt or a dozen syntax errors.</p>
 
       <h3>Who is this NOT for?</h3>
-      <p>People who want to edit their geodata.  This currently doesn't have any editing features, it assumes your data is pretty much ready to go. See <strong>Other tools and resources</strong> below for some tools for this.</p>
+      <p>People who want to edit their data a lot.  This lets you edit the attribute table, but if you want to do bulk, spreadsheet-style editing, you're going to have a bad time.  See <strong>Other tools and resources</strong> below for some tools for this.</p>
       <p>People who want to make Google Maps-style tile maps that you can slip and slide around.  This is meant for more focused maps that ignore the world at large.  Think election maps.  See <strong>Other tools and resources</strong> below for some tools for tile maps.</p>
       <p>People who want to make complex, multilayered, or heavily stylized maps.  This may still provide a useful starting point for that, but it's not going to get you very far.</p>
       <p>Mike Bostock.</p>
@@ -101,9 +101,9 @@
         <li>Built-in image fallbacks for code download</li>        
         <li>Pull in data from a Google spreadsheet with Tabletop.js</li>
         <li>Feature simplification</li>
-        <li>Edit the attribute table</li>
         <li>Merge features</li>       
         <li>Add a legend to a chloropleth</li>
+        <li>Categorical chloropleths</li>
         <li>Support files with multiple geometry layers</li>
         <li>Auto-delete weird features (i.e. tiny islands)</li>
         <li>Split a feature into its constituent parts and edit in detail</li>
@@ -291,6 +291,7 @@
         <div class="instructions">
           <p>This table contains attributes about your map that were stored in the file you uploaded.  Hover over a row in the table to highlight it on the map.</p>
           <p>You can click "Remove" to remove a feature (if you remove something by mistake, just click "Restore" to add it back), and use the column headers to sort the table.</p>
+          <p>To edit data for a feature, just click on the cell you want to edit.</p>
         </div>
         <div id="attributes-outer" style="margin-left: auto; margin-right: auto;">
           <div id="no-attributes">

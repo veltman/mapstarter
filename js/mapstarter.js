@@ -120,20 +120,36 @@ function loaded(newFile) {
 
       if (!currentFile.skip) currentFile.skip = [];
 
+      currentFile.edits = [];
+
       switchLinks.datum(currentFile.type == "geojson" ? "topojson" : "geojson");
 
       //Choose a projection based on the data
-      chooseDefaultProjection(currentFile.data.geo);
-
-      setFileType(currentFile.type);      
+      chooseDefaultProjection(currentFile.data.geo);      
 
       //Get distinct properties for the attribute table, try to put ID and Name columns first, otherwise leave it alone
       var set = d3.set();
-      currentFile.data.geo.features.forEach(function(d) {
+
+      if (currentFile.data.topo) {
+        var o = getObjectName(currentFile.data.topo);
+
+        currentFile.data.topo.objects[o].geometries.forEach(function(d,i) {
+          if (!d.properties) currentFile.data.topo.objects[o].geometries[i].properties = {};          
+        });
+
+      }
+
+      currentFile.data.geo.features.forEach(function(d,i) {
+        if (!d.properties) currentFile.data.geo.features[i].properties = {};
+
         for (prop in d.properties) {
           set.add(prop);
-        }              
+        }
       });
+
+      setFileType(currentFile.type);
+
+
       attributesColumns = set.values().sort(function(a,b) {
         if (a.toLowerCase() == "id") return -1;
         if (b.toLowerCase() == "name") return -1;        
@@ -151,9 +167,6 @@ function loaded(newFile) {
         })
         .on("mouseout",function(d,i) {                
           if (mapOptions.colorType == "simple") map.select("path#path"+i+":not(.clicked)").attr("fill",mapOptions.fill);
-        })
-        .on("click",function(d,i) {          
-          clicked(currentFile.data.geo.features[i]);
         });
 
       $("select#tooltip-attribute option,select#color-chloropleth-attribute option").remove();
@@ -170,6 +183,48 @@ function loaded(newFile) {
               return JSON.stringify(d.properties[a], null, " ");
             } 
             return "";
+          }).on("click",function(d,rowIndex) {                        
+            //Don't allow editing of deep objects/arrays            
+            if (a in d.properties && typeof d.properties[a] !== "number" && typeof d.properties[a] !== "string") return true;
+
+            var cell = d3.select(this);
+            var t = cell.text();
+
+            var w = cell.style("width");
+            var h = cell.style("height");            
+
+            cell.html("").append("input")
+              .style("width",w)
+              .style("height",h)
+              .attr("class","text")
+              .attr("value",t)
+              .datum(t)
+              .on("click",function() {
+                d3.event.stopPropagation();
+              })
+              .on("keypress",function(){                                
+                if (d3.event.keyCode == 13) d3.select(this).node().blur();
+              })
+              .on("blur",function(original) {                                
+                var input = d3.select(this);
+                if (input.empty()) return true;
+
+                var val = this.value;                
+                input.remove();
+
+                cell.text(val);
+
+                currentFile.data.geo.features[rowIndex].properties[a] = val;
+                if (currentFile.data.topo) {
+                  var o = getObjectName(currentFile.data.topo);
+                  currentFile.data.geo.objects[o].geometries[rowIndex].properties[a] = val;
+                }
+
+                if (mapOptions.colorType == "chloropleth") recolor();
+
+                updateDownloads("data");                
+              })
+              .node().focus();            
           });
 
           $("select.attribute-list").append($("<option />").val(a).text(a));
@@ -421,10 +476,6 @@ function resetOptions() {
   mapOptions.tooltip = false;
   
 }
-
-
-
-
 
 function setListeners() {
     
@@ -876,7 +927,7 @@ function updateDownloads(type) {
     return true;
   }
 
-  var filtered = filterFeatures((currentFile.type == "topojson") ? currentFile.data.topo : currentFile.data.geo,currentFile.type,currentFile.skip);
+  var filtered = filterFeatures((currentFile.type == "topojson") ? currentFile.data.topo : currentFile.data.geo,currentFile.type,currentFile.skip,currentFile.edits);
   body.selectAll("a.data-download").attr("download",currentFile.name).html(currentFile.name).attr("href",window.URL.createObjectURL(new Blob([JSON.stringify(filtered)], { "type" : "application/json" })));
   return true;
 
@@ -1160,9 +1211,9 @@ function clicked(d) {
 
   if (mapOptions.colorType == "simple") paths.attr("fill", function(d) { return (centered && d === centered) ? mapOptions.highlight : mapOptions.fill; });
 
-  features.transition()
-      .duration(750)
-      .attr("transform", "translate(" + mapOptions.width / 2 + "," + mapOptions.height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")");
+  //features.transition()
+      //.duration(750)
+  features.attr("transform", "translate(" + mapOptions.width / 2 + "," + mapOptions.height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")");
 }
 
 //Freeform zooming
@@ -1202,6 +1253,7 @@ function getSVG(features,skip,options) {
 
 //Filter features for file download links, removing features that are marked as removed in the "Data" tab
 function filterFeatures(data,type,skip) {    
+  
   if (!skip || !skip.length) return data;
 
   //Deep copy
@@ -1209,7 +1261,8 @@ function filterFeatures(data,type,skip) {
 
   if (type == "topojson") {
     var o = getObjectName(data);    
-    newData.objects[o].geometries = newData.objects[o].geometries.map(function(d,i) {
+
+    newData.objects[o].geometries = newData.objects[o].geometries.map(function(d,i) {      
       return (skip.indexOf(i) == -1) ? d : null;
     }).filter(function(d) {
       return d !== null;

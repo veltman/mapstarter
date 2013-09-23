@@ -18,6 +18,12 @@ input,textarea,select {
   font-size: 14px;
 }
 
+input {
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+}
+
 .clear {
   clear: both;
 }
@@ -376,6 +382,11 @@ table#attributes {
   margin-left: auto;
   margin-right: auto;
   border-collapse: collapse;
+}
+
+table#attributes td input.text {
+  font-size: 12px;
+  padding: 0;
 }
 
 table#attributes th,td {

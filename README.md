@@ -31,7 +31,7 @@ Who is this for?
 Who is this NOT for?
 --------------------
 
-People who want to edit their geodata.  This currently doesn't have any editing features, it assumes your data is pretty much ready to go. See **Other tools and resources** below for some tools for this.
+People who want to edit their data a lot.  This lets you edit the attribute table, but if you want to do bulk, spreadsheet-style editing, you're going to have a bad time. See **Other tools and resources** below for some tools for this.
 
 People who want to make Google Maps-style tile maps that you can slip and slide around.  This is meant for more focused maps that ignore the world at large.  Think election maps.  See **Other tools and resources** below 
 for some tools for tile maps.
@@ -48,8 +48,7 @@ This will currently only support a single layer of geometries.  If, for example,
 
 If you download the code for your map, it will rely on [D3](http://d3js.org/) for most of the heavy lifting.  D3 is not compatible with IE8 and below, so if you need to serve old browsers, make sure you include an image fallback of some sort.
 
-If you already have GeoJSON/TopoJSON, you can run this without an internet connection.  The only pieces that require an internet connection are importing a shapefile, which currently uses the [ADC 
-ogr2ogr converter](http://ogre.adc4gis.com/), and converting from GeoJSON to TopoJSON.  If you want to run it locally, you can clone this GitHub repository and open index.html.
+If you already have GeoJSON/TopoJSON, you can run this without an internet connection.  The only pieces that require an internet connection are importing a shapefile and converting from GeoJSON to TopoJSON.  If you want to run it locally, you can clone this GitHub repository and open index.html.
 
 This will only work on modern browsers, and I wouldn't recommend using it on your smartphone.
 
@@ -60,15 +59,15 @@ To do list
 * Option to add data file to a communal library
 * Responsive scaling option for code download
 * Built-in image fallbacks for code download
-* Edit the attribute table
+* Pull in data from a Google spreadsheet with Tabletop.js
+* Feature simplification
 * Merge features
-* Chloroplething
+* Add a legend to a chloropleth
+* Categorical chloropleths
 * Support files with multiple geometry layers
 * Auto-delete weird features (i.e. tiny islands)
 * Split a feature into its constituent parts and edit in detail.
 * KML importing?  Do people still use KML?
-* Fix Mercator auto-bounds for features that cross the International Date Line
-* Add more projection options?  Do people need to use weird projections?  
 
 Get in touch
 ------------
@@ -87,9 +86,9 @@ Appendix: other tools and resources
 * If you want to make a slippy, Google Maps-style tile map, I highly recommend [Leaflet](http://leafletjs.com/).  It's delightful.  Another option is [Modest Maps](http://modestmaps.com/).
 * Shan Carter has a [nice tool for converting GeoJSON to TopoJSON](http://shancarter.github.io/distillery/).
 * If you want to make a tile map with custom tiles, you can get pretty far with [CloudMade](http://cloudmade.com/) or [MapBox](http://www.mapbox.com/).  For full control, you'll probably want to use [TileMill](http://mapbox.com/tilemill/).  Lisa Williams has a [tutorial on getting started with TileMill](http://dataforradicals.com/the-insanely-illustrated-guide-to-your-first-tile-mill-map/).
-* If you're in the chloropleth business, the folks at MinnPost have a great utility for that called [Tulip](http://code.minnpost.com/tulip/).
+* If you're in the chloropleth business, the folks at MinnPost have a great utility for that called [Tulip](http://code.minnpost.com/tulip/) with much finer controls than this offers.
 * If you're a developer, [Kartograph.js](http://kartograph.org/) is a neat JavaScript library for building SVG maps that also includes support for IE7 and IE8.        
-* If you want to build stuff out of geodata and you don't mind paying for the privilege and giving up some control over the details, [CartoDB](http://cartodb.com) offers a lot of features (Disclaimer: I've never used it).        
+* If you want to build stuff out of geodata and you don't mind paying for the privilege and giving up some control over the details, [CartoDB](http://cartodb.com) offers a lot of features (Disclaimer: I've never used it).
 * For detailed geodata about the entire world, [OpenStreetMap](http://wiki.openstreetmap.org/wiki/Main_Page) is without equal, and has a vibrant ecosystem of lots of tools and services to help you extract specific data you want.  And it's free!
 * For semi-canonical shapefiles of countries of the world, states, provinces, coastlines, or other high-level features, try [Natural Earth Data](http://www.naturalearthdata.com/downloads/).  To get it as TopoJSON, try Mike Bostock's [World Atlas](https://github.com/mbostock/world-atlas) tool.
 * For US-specific geodata, you can try the [US Census Bureau](http://www.census.gov/geo/maps-data/data/tiger.html), but you'll probably end up in tears.  [This TopoJSON file](http://bl.ocks.org/mbostock/raw/4090846/us.json) from Mike Bostock includes US counties and states and may be a shortcut.
