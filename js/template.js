@@ -218,10 +218,10 @@ function generateCode(file,options) {
                 function() { if (options.strokeWidth) return '      .style("stroke-width", '+options.strokeWidth+' / k + "px"); // Keep the border width constant'; return null; },
                 '',
                 '  //Zoom and re-center the map',
-                '  //Remove .transition() and .duration() to make zoom instant',
+                '  //Uncomment .transition() and .duration() to make zoom gradual',
                 '  features',
-                '      .transition()',
-                '      .duration(500)',
+                '      //.transition()',
+                '      //.duration(500)',
                 '      .attr("transform","translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")");',
                 '}',
                 ''

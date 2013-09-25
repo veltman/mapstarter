@@ -7,6 +7,7 @@ var body,
   map,
   features,
   paths,
+  filledPaths,
   upload,
   attributesHeader,        
   attributesBody,
@@ -42,7 +43,7 @@ var mapOptions = {
   highlight: "tomato",  
   colorType: "simple",
   chloropleth: {buckets: 3, type: "numeric", scaleName: "YlGn", scale: d3.scale.quantize(), reverse: false, attribute: null, map: {}, default: "#999", attributeProblem: false},
-  zoomMode: "feature",
+  zoomMode: "free",
   responsive: false,
   tooltip: false
 };
@@ -161,10 +162,10 @@ function loaded(newFile) {
       attributesRows = attributesBody.selectAll("tr").data(currentFile.data.geo.features).enter().append("tr")
         .attr("id",function(d,i) { return "tr"+i;} )
         .on("mouseover",function(d,i) {
-          if (mapOptions.colorType == "simple") map.select("path#path"+i).attr("fill",mapOptions.highlight);
+          if (mapOptions.colorType == "simple") d3.select("#path"+i+".filled").attr("fill",mapOptions.highlight);
         })
         .on("mouseout",function(d,i) {                
-          if (mapOptions.colorType == "simple") map.select("path#path"+i+":not(.clicked)").attr("fill",mapOptions.fill);
+          if (mapOptions.colorType == "simple") d3.select("#path"+i+".filled:not(.clicked)").attr("fill",mapOptions.fill);
         });
 
       $("select#tooltip-attribute option,select#color-chloropleth-attribute option").remove();
@@ -287,9 +288,17 @@ function loaded(newFile) {
         .attr("id",function(d,i) {
           return "path"+i;
         })
+        .attr("fill",function(d) {
+          if (d.geometry.type == "LineString") return "none";
+          return null;
+        })
+        .attr("class",function(d) {
+          if (d.geometry.type == "LineString") return null;
+          return "filled";
+        })
         .on("click",clicked)
         .on("mouseover",function(d,i) {            
-          var p = d3.select(this);
+          var p = d3.select(this).filter(".filled");
           if (mapOptions.colorType == "simple") p.attr("fill",mapOptions.highlight);
           if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#e6e6e6");
 
@@ -302,12 +311,14 @@ function loaded(newFile) {
           tooltip.style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px");
         })
         .on("mouseout",function(d,i) {
-          var p = d3.select(this);
+          var p = d3.select(this).filter(".filled");
           if (!p.classed("clicked") && mapOptions.colorType == "simple") p.attr("fill",mapOptions.fill);
           if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#fff");
           tooltip.text("").attr("class","hidden");
       });
       
+      filledPaths = paths.filter(function(d) { return d.geometry.type != "LineString"; });
+
       resetOptions();
       
       //Draw the map
@@ -419,7 +430,7 @@ function recolor(from) {
   mapOptions.chloropleth.attributeProblem = false;
 
   if (mapOptions.colorType == "simple") {
-    paths.attr("fill",mapOptions.fill);
+    filledPaths.attr("fill",mapOptions.fill);
     return true;
   }
 
@@ -434,12 +445,12 @@ function recolor(from) {
 
   if (!mapped.length) {
     mapOptions.chloropleth.attributeProblem = true;
-    paths.attr("fill",mapOptions.chloropleth.default);
+    filledPaths.attr("fill",mapOptions.chloropleth.default);
     mapOptions.chloropleth.scale = d3.scale.quantize().domain([0,1]).range(colors);
   } else {              
     mapOptions.chloropleth.scale = d3.scale.quantize().domain(d3.extent(mapped)).range(colors);
 
-    paths.attr("fill",function(d){
+    filledPaths.attr("fill",function(d){
       if (!d.properties || !mapOptions.chloropleth.attribute) {
         mapOptions.chloropleth.attributeProblem = true;
         return mapOptions.chloropleth.default;
@@ -524,7 +535,7 @@ function setListeners() {
   //Listeners for form updates
   $("input#color-fill").change(function(){    
     mapOptions.fill = $(this).val();
-    paths.attr("fill",mapOptions.fill);
+    filledPaths.attr("fill",mapOptions.fill);
   });
 
   $("input#color-stroke").change(function(){        
@@ -897,7 +908,7 @@ function fixGeo(g) {
 
 //Needs a geometry collection, single-element topologies will break it
 function fixTopo(t) {
-  console.log(t);
+
   for (var i in t.objects) {
     if (t.objects[i].type != "GeometryCollection") {
       t.objects[i].id = 1;
@@ -1221,7 +1232,7 @@ function clicked(d) {
       .classed("clicked", centered && function(d) { return d === centered; })
       .attr("stroke-width", mapOptions.strokeWidth / k + "px");
 
-  if (mapOptions.colorType == "simple") paths.attr("fill", function(d) { return (centered && d === centered) ? mapOptions.highlight : mapOptions.fill; });
+  if (mapOptions.colorType == "simple") filledPaths.attr("fill", function(d) { return (centered && d === centered) ? mapOptions.highlight : mapOptions.fill; });
 
   //features.transition()
       //.duration(750)
@@ -1247,10 +1258,14 @@ function getSVG(features,skip,options) {
 
   features.forEach(function(d,i) {        
 
+    var fill;
+
     if (skip && skip.indexOf(i) != -1) return true;
 
     if (options.colorType == "simple") {
       fill = options.fill;
+    } else if (!fills[i].length) {
+      fill = "none";
     } else {
       fill = fills[i];
     }
