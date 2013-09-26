@@ -103,8 +103,8 @@
         <li>Feature simplification</li>
         <li>Merge features</li>       
         <li>Fix processing of shapefiles using a projected CRS</li>
-        <li>Add a legend to a chloropleth</li>
-        <li>Categorical chloropleths</li>
+        <li>Add a legend to a choropleth</li>
+        <li>Categorical choropleths</li>
         <li>Support files with multiple geometry layers</li>
         <li>Auto-delete weird features (i.e. tiny islands)</li>
         <li>Split a feature into its constituent parts and edit in detail</li>
@@ -129,7 +129,7 @@
         <li>If you want to make a slippy, Google Maps-style tile map, I highly recommend <a href="http://leafletjs.com/">Leaflet</a>.  It's delightful.  Another option is <a href="http://modestmaps.com/">Modest Maps</a>.</li>
         <li>Shan Carter has a <a href="http://shancarter.github.io/distillery/">nice tool for converting GeoJSON to TopoJSON</a>.</li>
         <li>If you want to make a tile map with custom tiles, you can get pretty far with <a href="http://cloudmade.com/">CloudMade</a> or <a href="http://www.mapbox.com/">MapBox</a>.  For full control, you'll probably want to use <a href="http://mapbox.com/tilemill/">TileMill</a>.  Lisa Williams has a <a href="http://dataforradicals.com/the-insanely-illustrated-guide-to-your-first-tile-mill-map/">tutorial on getting started with TileMill</a>.</li>
-        <li>If you're in the chloropleth business, the folks at MinnPost have a great utility for that called <a href="http://code.minnpost.com/tulip/">Tulip</a> with much finer controls than this offers.</li>
+        <li>If you're in the choropleth business, the folks at MinnPost have a great utility for that called <a href="http://code.minnpost.com/tulip/">Tulip</a> with much finer controls than this offers.</li>
         <li>If you're a developer, <a href="http://kartograph.org/">Kartograph.js</a> is a neat JavaScript library for building SVG maps that also includes support for IE7 and IE8.</li>        
         <li>If you want to build stuff out of geodata and you don't mind paying for the privilege and giving up some control over the details, <a href="http://cartodb.com">CartoDB</a> offers a lot of features (Disclaimer: I've never used it).</li>        
         <li>For detailed geodata about the entire world, <a href="http://wiki.openstreetmap.org/wiki/Main_Page">OpenStreetMap</a> is without equal, and has a vibrant ecosystem of lots of tools and services to help you extract specific data you want.  And it's free!</li>
@@ -161,7 +161,7 @@
             <label for="input-projection">Projection</label>
             <select id="input-projection">
               <option value="mercator">Mercator</option>
-              <option value="conicEqualArea">Conic Equal Area (good for chloropleths)</option>
+              <option value="conicEqualArea">Conic Equal Area (good for choropleths)</option>
               <option value="robinson">Robinson (good for whole world)</option>              
               <option value="equirectangular">Equirectangular (simple but distorting)</option>
               <option value="albersUsa">Albers USA (for whole US, insets AK and HI)</option>
@@ -195,8 +195,8 @@
               <label for="color-type-simple" class="radio">Simple colors</label>
             </span>
             <span class="form-item">
-              <input type="radio" name="color-type" value="chloropleth" id="color-type-chloropleth" />
-              <label for="color-type-chloropleth" class="radio">Chloropleth</label>
+              <input type="radio" name="color-type" value="choropleth" id="color-type-choropleth" />
+              <label for="color-type-choropleth" class="radio">Choropleth</label>
             </span>
           </div>
         </div>
@@ -210,15 +210,15 @@
               <input type="color" class="text" id="color-highlight" value="#ff6347" />
             </span>
         </div>
-        <div class="panel-group color-type hidden" id="color-chloropleth">              
+        <div class="panel-group color-type hidden" id="color-choropleth">              
               <div> 
                 <span class="form-item">
-                  <label for="color-chloropleth-attribute">Attribute</label>
-                  <select id="color-chloropleth-attribute" class="attribute-list"></select>
+                  <label for="color-choropleth-attribute">Attribute</label>
+                  <select id="color-choropleth-attribute" class="attribute-list"></select>
                 </span>                          
                 <span class="form-item">
-                  <label for="color-chloropleth-buckets"># of colors</label>
-                  <select id="color-chloropleth-buckets">
+                  <label for="color-choropleth-buckets"># of colors</label>
+                  <select id="color-choropleth-buckets">
                     <option value="3">3</option>
                     <option value="4">4</option>
                     <option value="5">5</option>
@@ -231,17 +231,17 @@
                   </select>
                 </span>
                 <span class="form-item">
-                  <label for="color-chloropleth-default">Default (blank/non-numeric values)</label>
-                  <input type="color" class="text" id="color-chloropleth-default" value="#999999" />
+                  <label for="color-choropleth-default">Default (blank/non-numeric values)</label>
+                  <input type="color" class="text" id="color-choropleth-default" value="#999999" />
                 </span>
                 <span class="form-item">                                    
-                  <label for="color-chloropleth-reverse">Reverse?</label>
-                  <input type="checkbox" id="color-chloropleth-reverse" value="yes" />
+                  <label for="color-choropleth-reverse">Reverse?</label>
+                  <input type="checkbox" id="color-choropleth-reverse" value="yes" />
                 </span>  
               </div>
               <div>
                 <div class="panel-header">Color Scale</div>                
-                <div id="color-chloropleth-scales">
+                <div id="color-choropleth-scales">
                 </div>
                 <div class="clear"></div>
               </div>           
@@ -334,7 +334,7 @@
       <h3>What are GeoJSON and TopoJSON?</h3>
       <p>GeoJSON and TopoJSON are two web-friendly file formats for geographic data.  A GeoJSON file is a text file with a list of features and, for each one, a bunch of latitudes and longitudes describing its geometry.  A TopoJSON file is similar, but instead of storing the latitudes and longitudes directly, it describes the <em>topology</em> of a group of features, meaning the borders between them.  TopoJSON files are usually much smaller, but require a little bit of extra processing in the browser when you want to display one on a map, and can potentially lose details from the original latitudes/longitudes.  Shapefiles don't play nicely with the web, so if you upload a shapefile, it gets converted to GeoJSON.</p> 
       <h3>What are map projections?</h3>
-      <p>Map projections are different systems for displaying part of the round Earth as a flat image.  Each projection has advantages and disadvantages.  Some distort how big things are relative to each other.  Some distort where things are relative to each other or the angles between them.  One thing to consider is that when making a chloropleth map, so a conic equal area projection or something else that preserves relative areas is good.  For more on map projections, see the <a href="http://nationalatlas.gov/articles/mapping/a_projections.html" target="_blank">National Atlas summary</a>.</p>
+      <p>Map projections are different systems for displaying part of the round Earth as a flat image.  Each projection has advantages and disadvantages.  Some distort how big things are relative to each other.  Some distort where things are relative to each other or the angles between them.  One thing to consider is that when making a choropleth map, so a conic equal area projection or something else that preserves relative areas is good.  For more on map projections, see the <a href="http://nationalatlas.gov/articles/mapping/a_projections.html" target="_blank">National Atlas summary</a>.</p>
       <h3>How does the code download work?</h3>
       <p>The code download gives you two files: one is a data file with your map data in a web-friendly format.  The other is a basic template page that will display the map with the options you've selected.  If you have them in the same folder and open them via a web server (either remotely or on your computer), you'll get an interactive map.  You can modify this template to add all kinds of bells and whistles!</p>
       <h3>Where is my data being uploaded?</h3>
@@ -373,7 +373,7 @@
     <!-- For generating code sample -->
     <script src="js/template.js"></script>
 
-    <!-- For chloropleth color scales -->
+    <!-- For choropleth color scales -->
     <script src="js/colorbrewer.js"></script>
 
     <!-- Everything else -->

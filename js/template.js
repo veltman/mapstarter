@@ -14,7 +14,7 @@ function generateCode(file,options) {
         'path {',
         function() { if (options.strokeWidth > 0) return '  stroke-width: '+options.strokeWidth+'px;'; return null; },
         function() { if (options.strokeWidth > 0) return '  stroke: '+options.stroke+';'; return '  stroke: none;' },
-        function() { if (options.colorType == "simple") return '  fill: '+options.fill+';'; return '  fill: '+options.chloropleth.default+';'; },
+        function() { if (options.colorType == "simple") return '  fill: '+options.fill+';'; return '  fill: '+options.choropleth.default+';'; },
         '  cursor: pointer;',
         '}',
         ''
@@ -27,9 +27,9 @@ function generateCode(file,options) {
             '}',
             ''
         ]);
-    } else if (options.colorType == "chloropleth") {
-        var domain = options.chloropleth.scale.domain();
-        var range = options.chloropleth.scale.range();
+    } else if (options.colorType == "choropleth") {
+        var domain = options.choropleth.scale.domain();
+        var range = options.choropleth.scale.range();
 
         range.forEach(function(d,i) {
             codeLines = codeLines.concat([
@@ -59,7 +59,7 @@ function generateCode(file,options) {
 
     codeLines = codeLines.concat([
         '</style>',
-        '<body>',
+        '<body>',        
         '<script src="http://d3js.org/d3.v3.min.js"></script>',
         function(){ if (file.type == "topojson") return '<script src="http://d3js.org/topojson.v1.min.js"></script>'; return null; },
         '<script>',
@@ -91,7 +91,8 @@ function generateCode(file,options) {
                 return '    .translate(['+options.projection.translate().join(",")+']) //translate to center the map in view';
 
             return '    .translate([width/2,height/2]) //translate to center the map in view';
-            return null;
+
+            //return null;
         },          
         '',
         '//Generate paths based on projection',
@@ -108,10 +109,10 @@ function generateCode(file,options) {
         '    .attr("class","features");'
     ]);
 
-    if (options.colorType == "chloropleth") {
+    if (options.colorType == "choropleth") {
         codeLines = codeLines.concat([
             '',
-            '//Create chloropleth scale',
+            '//Create choropleth scale',
             'var color = d3.scale.quantize()',
             '    .domain(['+domain+'])',            
             '    .range(d3.range('+range.length+').map(function(i) { return "q" + i + "-'+range.length+'"; }));'
@@ -164,14 +165,14 @@ function generateCode(file,options) {
         '    .append("path")',
         '    .attr("d",path)',
         function() {
-            if (options.colorType != "chloropleth") return null;
+            if (options.colorType != "choropleth") return null;
 
             var a;
             
-            if (!options.chloropleth.attribute.match(/^[$_A-Za-z][$_A-Za-z0-9]+$/)) {
-                a = 'd.properties["'+options.chloropleth.attribute.replace('"','\"')+'"]';                        
+            if (!options.choropleth.attribute.match(/^[$_A-Za-z][$_A-Za-z0-9]+$/)) {
+                a = 'd.properties["'+options.choropleth.attribute.replace('"','\"')+'"]';                        
             } else {
-                a = 'd.properties.'+options.chloropleth.attribute;
+                a = 'd.properties.'+options.choropleth.attribute;
             }             
 
             return '    .attr("class", function(d) { return (typeof color('+a+') == "string" ? color('+a+') : ""); })';

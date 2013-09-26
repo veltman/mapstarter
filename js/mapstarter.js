@@ -42,7 +42,7 @@ var mapOptions = {
   fill: "steelblue",
   highlight: "tomato",  
   colorType: "simple",
-  chloropleth: {buckets: 3, type: "numeric", scaleName: "YlGn", scale: d3.scale.quantize(), reverse: false, attribute: null, map: {}, default: "#999", attributeProblem: false},
+  choropleth: {buckets: 3, type: "numeric", scaleName: "YlGn", scale: d3.scale.quantize(), reverse: false, attribute: null, map: {}, default: "#999", attributeProblem: false},
   zoomMode: "free",
   responsive: false,
   tooltip: false
@@ -177,12 +177,12 @@ function loaded(newFile) {
           if (mapOptions.colorType == "simple") d3.select("#path"+i+".filled:not(.clicked)").attr("fill",mapOptions.fill);
         });
 
-      $("select#tooltip-attribute option,select#color-chloropleth-attribute option").remove();
+      $("select#tooltip-attribute option,select#color-choropleth-attribute option").remove();
 
       //Stringify any non-primitive data values
       attributesColumns.forEach(function(a,i) {
 
-        if (!i) mapOptions.chloropleth.attribute = a;
+        if (!i) mapOptions.choropleth.attribute = a;
 
         attributesRows.append("td")
           .text(function(d) {
@@ -228,7 +228,7 @@ function loaded(newFile) {
                   currentFile.data.geo.objects[o].geometries[rowIndex].properties[a] = val;
                 }
 
-                if (mapOptions.colorType == "chloropleth") recolor();
+                if (mapOptions.colorType == "choropleth") recolor();
 
                 updateDownloads("data");                
               })
@@ -281,7 +281,7 @@ function loaded(newFile) {
 
             updateDownloads("data");
             scaleMap();
-            if (mapOptions.colorType == "chloropleth") recolor();
+            if (mapOptions.colorType == "choropleth") recolor();
 
             return false;
           })
@@ -393,18 +393,18 @@ function showSection(section,preserveAlerts) {
 
 function populateScales() {  
   
-  mapOptions.chloropleth.buckets = parseInt($("select#color-chloropleth-buckets").val());  
-  mapOptions.chloropleth.attribute = $("select#color-chloropleth-attribute").val();
+  mapOptions.choropleth.buckets = parseInt($("select#color-choropleth-buckets").val());  
+  mapOptions.choropleth.attribute = $("select#color-choropleth-attribute").val();
 
-  var entries = d3.entries(colorbrewer[mapOptions.chloropleth.type]).filter(function(d) {
-      return d.value[mapOptions.chloropleth.buckets];
+  var entries = d3.entries(colorbrewer[mapOptions.choropleth.type]).filter(function(d) {
+      return d.value[mapOptions.choropleth.buckets];
     }).map(function(d) {      
-      return {key: d.key, value: (mapOptions.chloropleth.reverse ? d.value[mapOptions.chloropleth.buckets].slice(0).reverse() : d.value[mapOptions.chloropleth.buckets])};
+      return {key: d.key, value: (mapOptions.choropleth.reverse ? d.value[mapOptions.choropleth.buckets].slice(0).reverse() : d.value[mapOptions.choropleth.buckets])};
     });
 
-  body.selectAll("div#color-chloropleth-scales div").remove();  
+  body.selectAll("div#color-choropleth-scales div").remove();  
 
-  var scales = d3.select("div#color-chloropleth-scales").selectAll(".palette")
+  var scales = d3.select("div#color-choropleth-scales").selectAll(".palette")
     .data(entries)
     .enter()
     .append("div")
@@ -416,13 +416,13 @@ function populateScales() {
       if (!palette.classed("selected")) {
         d3.select(".palette.selected").attr("class","palette");
         palette.attr("class","palette selected");
-        mapOptions.chloropleth.scaleName = d.key;
+        mapOptions.choropleth.scaleName = d.key;
         recolor();
       }
 
     });
 
-  scales.classed("selected",function(d) { return (d.key == mapOptions.chloropleth.scaleName); });
+  scales.classed("selected",function(d) { return (d.key == mapOptions.choropleth.scaleName); });
 
   var swatches = scales.selectAll(".swatch")
     .data(function(d){ return d.value; })
@@ -431,7 +431,7 @@ function populateScales() {
 
   if (d3.select(".palette.selected").empty()) {
     d3.select(".palette").attr("class","palette selected");
-    mapOptions.chloropleth.scaleName = d3.select(".palette").datum().key;
+    mapOptions.choropleth.scaleName = d3.select(".palette").datum().key;
   }
 
 }
@@ -441,40 +441,40 @@ function populateScales() {
 //otherwise throw a warning
 function recolor(from) {    
 
-  mapOptions.chloropleth.attributeProblem = false;
+  mapOptions.choropleth.attributeProblem = false;
 
   if (mapOptions.colorType == "simple") {
     filledPaths.attr("fill",mapOptions.fill);
     return true;
   }
 
-  var colors = colorbrewer[mapOptions.chloropleth.type][mapOptions.chloropleth.scaleName][mapOptions.chloropleth.buckets].slice(0);
+  var colors = colorbrewer[mapOptions.choropleth.type][mapOptions.choropleth.scaleName][mapOptions.choropleth.buckets].slice(0);
 
-  if (mapOptions.chloropleth.reverse) colors.reverse();
+  if (mapOptions.choropleth.reverse) colors.reverse();
 
   var mapped = filterFeatures(currentFile.data.geo,"geojson",currentFile.skip).features.map(function(d) {
-      if (!(mapOptions.chloropleth.attribute in d.properties)) return null;
-      return parseNumber(d.properties[mapOptions.chloropleth.attribute]);
+      if (!(mapOptions.choropleth.attribute in d.properties)) return null;
+      return parseNumber(d.properties[mapOptions.choropleth.attribute]);
     }).filter(function(d) {return d !== null;});  
 
   if (!mapped.length) {
-    mapOptions.chloropleth.attributeProblem = true;
-    filledPaths.attr("fill",mapOptions.chloropleth.default);
-    mapOptions.chloropleth.scale = d3.scale.quantize().domain([0,1]).range(colors);
+    mapOptions.choropleth.attributeProblem = true;
+    filledPaths.attr("fill",mapOptions.choropleth.default);
+    mapOptions.choropleth.scale = d3.scale.quantize().domain([0,1]).range(colors);
   } else {              
-    mapOptions.chloropleth.scale = d3.scale.quantize().domain(d3.extent(mapped)).range(colors);
+    mapOptions.choropleth.scale = d3.scale.quantize().domain(d3.extent(mapped)).range(colors);
 
     filledPaths.attr("fill",function(d){
-      if (!d.properties || !mapOptions.chloropleth.attribute) {
-        mapOptions.chloropleth.attributeProblem = true;
-        return mapOptions.chloropleth.default;
+      if (!d.properties || !mapOptions.choropleth.attribute) {
+        mapOptions.choropleth.attributeProblem = true;
+        return mapOptions.choropleth.default;
       }
 
-      var num = parseNumber(d.properties[mapOptions.chloropleth.attribute]);
+      var num = parseNumber(d.properties[mapOptions.choropleth.attribute]);
 
-      if (num === null) return mapOptions.chloropleth.default;
+      if (num === null) return mapOptions.choropleth.default;
 
-      return mapOptions.chloropleth.scale(num);
+      return mapOptions.choropleth.scale(num);
             
     });
 
@@ -487,7 +487,7 @@ function resetOptions() {
       
   //Set color scheme to simple
   $("input#color-type-simple").prop("checked",true);
-  $("input#color-type-chloropleth").prop("checked",false);
+  $("input#color-type-choropleth").prop("checked",false);
   mapOptions.colorType = "simple";
   d3.selectAll("div.panel-group.color-type").classed("hidden",true);
   d3.selectAll("div#color-"+mapOptions.colorType).classed("hidden",false);
@@ -615,7 +615,7 @@ function setListeners() {
     resetMap();
     recolor();
 
-    if (mapOptions.colorType == "chloropleth" && mapOptions.chloropleth.attributeProblem) msg("non-numeric");
+    if (mapOptions.colorType == "choropleth" && mapOptions.choropleth.attributeProblem) msg("non-numeric");
     else msgClear("non-numeric");
   });
 
@@ -630,28 +630,28 @@ function setListeners() {
     mapOptions.tooltip = $(this).val();
   });
 
-  $("select#color-chloropleth-buckets").change(function() {
+  $("select#color-choropleth-buckets").change(function() {
     populateScales();
     recolor();
   });
 
-  $("select#color-chloropleth-attribute").change(function(){
-    mapOptions.chloropleth.attribute = $(this).val();
+  $("select#color-choropleth-attribute").change(function(){
+    mapOptions.choropleth.attribute = $(this).val();
     resetMap();
     recolor();
 
-    if (mapOptions.colorType == "chloropleth" && mapOptions.chloropleth.attributeProblem) msg("non-numeric");
+    if (mapOptions.colorType == "choropleth" && mapOptions.choropleth.attributeProblem) msg("non-numeric");
     else msgClear("non-numeric");
   });
 
-  $("input#color-chloropleth-default").change(function(){        
-    mapOptions.chloropleth.default = $(this).val();
+  $("input#color-choropleth-default").change(function(){        
+    mapOptions.choropleth.default = $(this).val();
     resetMap();
     recolor();
   });
 
-  $("input#color-chloropleth-reverse").change(function(){        
-    mapOptions.chloropleth.reverse = $(this).prop("checked");
+  $("input#color-choropleth-reverse").change(function(){        
+    mapOptions.choropleth.reverse = $(this).prop("checked");
     populateScales();
     resetMap();
     recolor();

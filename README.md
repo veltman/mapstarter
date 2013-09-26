@@ -63,8 +63,8 @@ To do list
 * Fix processing of shapefiles using a projected CRS
 * Feature simplification
 * Merge features
-* Add a legend to a chloropleth
-* Categorical chloropleths
+* Add a legend to a choropleth
+* Categorical choropleths
 * Support files with multiple geometry layers
 * Auto-delete weird features (i.e. tiny islands)
 * Split a feature into its constituent parts and edit in detail.
@@ -87,7 +87,7 @@ Appendix: other tools and resources
 * If you want to make a slippy, Google Maps-style tile map, I highly recommend [Leaflet](http://leafletjs.com/).  It's delightful.  Another option is [Modest Maps](http://modestmaps.com/).
 * Shan Carter has a [nice tool for converting GeoJSON to TopoJSON](http://shancarter.github.io/distillery/).
 * If you want to make a tile map with custom tiles, you can get pretty far with [CloudMade](http://cloudmade.com/) or [MapBox](http://www.mapbox.com/).  For full control, you'll probably want to use [TileMill](http://mapbox.com/tilemill/).  Lisa Williams has a [tutorial on getting started with TileMill](http://dataforradicals.com/the-insanely-illustrated-guide-to-your-first-tile-mill-map/).
-* If you're in the chloropleth business, the folks at MinnPost have a great utility for that called [Tulip](http://code.minnpost.com/tulip/) with much finer controls than this offers.
+* If you're in the choropleth business, the folks at MinnPost have a great utility for that called [Tulip](http://code.minnpost.com/tulip/) with much finer controls than this offers.
 * If you're a developer, [Kartograph.js](http://kartograph.org/) is a neat JavaScript library for building SVG maps that also includes support for IE7 and IE8.        
 * If you want to build stuff out of geodata and you don't mind paying for the privilege and giving up some control over the details, [CartoDB](http://cartodb.com) offers a lot of features (Disclaimer: I've never used it).
 * For detailed geodata about the entire world, [OpenStreetMap](http://wiki.openstreetmap.org/wiki/Main_Page) is without equal, and has a vibrant ecosystem of lots of tools and services to help you extract specific data you want.  And it's free!
