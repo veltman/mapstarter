@@ -78,7 +78,15 @@ var messages = {
   "non-numeric": {
     "type": "warn",
     "text": "Some of the data in the attribute you're using for the color scale is non-numeric or empty, it will be given the default color instead.  To inspect the data, use the Data tab."
-  }
+  },
+  "shp-too-big": {
+    "type": "error",
+    "text": "Sorry, shapefiles are currently limited to 15 MB.  Try converting it to GeoJSON here first: http://ogre.adc4gis.com/"
+  },
+  "geo-too-big": {
+    "type": "error",
+    "text": "Sorry, conversions to TopoJSON are currently limited to 15 MB of GeoJSON."
+  }  
 };
 
 $(document).ready(function() {
@@ -146,7 +154,8 @@ function loaded(newFile) {
         }
       });
 
-      setFileType(currentFile.type);
+      //moving this lower
+      //setFileType(currentFile.type);
 
 
       attributesColumns = set.values().sort(function(a,b) {
@@ -324,7 +333,12 @@ function loaded(newFile) {
       //Draw the map
       scaleMap();      
 
+      //Crop unnecessary whitespace from the non-limiting dimension on initial load
+      autoCrop();
+
       recolor();
+
+      setFileType(currentFile.type);
 
       uploadComplete();
 
@@ -660,9 +674,17 @@ function setListeners() {
 
         } else {
 
+          var stringified = JSON.stringify(currentFile.data.geo);
+
+          if (stringified.length > 15000000) {
+            msg("geo-too-big");
+            fileStatus.classed("loading",false);
+            return true;
+          }
+
           //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
           //Once whole server is running on Node this won't be necessary
-          $.post("geo-to-topo.php",{geojson: JSON.stringify(currentFile.data.geo)},function(topo) {
+          $.post("geo-to-topo.php",{geojson: stringified},function(topo) {
             currentFile.data.topo = fixTopo(topo);
             setFileType(to); 
           },"json");
@@ -775,6 +797,12 @@ function multiFile(shp,dbf) {
     formData.append('shp', shp);
     if (dbf) formData.append('dbf', dbf);
     else msg("no-dbf");
+
+    if (shp.size + dbf.size > 15000000) {
+      msg("shp-too-big");
+      uploadComplete();
+      return true;
+    }
 
     //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
     //Once whole server is running on Node this won't be necessary
@@ -983,7 +1011,7 @@ function updateProjection(data,width,height) {
   //Use min/max lat of data as parallels for conicEqualArea
   //Rotate around lng of the data centroid
   if ("parallels" in mapOptions.projection) {
-    
+
     var c = d3.geo.centroid(data);
 
     rotation = [(c[0] < 0) ? Math.abs(c[0]) : (360-c[0]) % 360,0];
@@ -1001,8 +1029,10 @@ function updateProjection(data,width,height) {
 
   mapOptions.projection.scale(s);
 
-  if ("parallels" in mapOptions.projection) {
+  if ("parallels" in mapOptions.projection) {    
+
     mapOptions.projection.translate(t);
+
   } else {
 
     if ("center" in mapOptions.projection) {
@@ -1031,6 +1061,46 @@ function updateProjection(data,width,height) {
 
   }
 
+  paths.attr("d",mapOptions.path);  
+
+}
+
+//Determine which dimension is limiting factor for the map (W or H) and reduce the other to fit
+function autoCrop() {
+
+  //Get limiting dimension on initial load, update width/height accordingly
+  var b = mapOptions.path.bounds(currentFile.data.geo);
+
+  if ((b[1][1]-b[0][1])/mapOptions.height > (b[1][0]-b[0][0])/mapOptions.width) {
+    
+    //height is limiting factor
+
+    mapOptions.width = Math.round((b[1][0]-b[0][0])/0.95);        
+    
+    map.attr("width",mapOptions.width);        
+
+    //Update surrounding div
+    mapBox.style("width",mapOptions.width+"px");
+
+    $("input#input-width").val(mapOptions.width);
+
+  } else {
+    
+    //width is limiting factor
+
+    mapOptions.height = Math.round((b[1][1]-b[0][1])/0.95);        
+    
+    map.attr("height",mapOptions.height);        
+
+    //Update surrounding div
+    mapBox.style("height",mapOptions.height+"px");
+
+    $("input#input-height").val(mapOptions.height);        
+
+  }
+
+  mapOptions.projection.translate([mapOptions.width/2,mapOptions.height/2]);
+
   paths.attr("d",mapOptions.path);
 
 }
@@ -1045,16 +1115,15 @@ function oppositeColor(color) {
 //Attempt to detect a US map including AK and HI, switch to albersUsa
 //Mercator projection will also get tripped up something that crosses the
 //International Date Line, like Alaska, so switch to conicEqualArea
-function chooseDefaultProjection(data) {
-  //d3.select("select#input-projection")
+function chooseDefaultProjection(data) {  
   var a = d3.geo.area(data),
     b = d3.geo.bounds(data),
     c = d3.geo.centroid(data);
 
   if (isUSA(a,b)) {
     mapOptions.projectionType = "albersUsa";
-  
-  
+  } else if (isWorld(a)) {
+    mapOptions.projectionType = "robinson";
   } else if (isWrapAround(b,c)) {
     mapOptions.projectionType = "conicEqualArea";
   } else {
@@ -1076,7 +1145,12 @@ function isUSA(a,b) {
   return (a > 0.21 && a < 0.24 && b[0][0] > 170 && b[0][0] < 174 && b[0][1] > 15 && b[0][1] < 19 && b[1][0] > -67 && b[1][0] < -61 && b[1][1] > 68 && b[1][1] < 74);
 }
 
-//Attempt to detect bounds that cross IDL but aren't entire world
+//Rough guess at whether it's a whole world map; should improve this to account for lng range, etc.
+function isWorld(a) {
+  return (a > 2.5);
+}
+
+//Attempt to detect bounds that cross IDL but aren't entire world; only affects things like mapping Alaska, or South Pacific islands
 //If the SW lng is greater than the NE lng, crosses the IDL
 //If the centroid is east of the SW lng or west of the NE lng, it's not a wraparound world map type situation
 function isWrapAround(b,c) {
@@ -1108,6 +1182,13 @@ function singleShapefile(file) {
     //Create form with file upload
     var formData = new FormData();
     formData.append(file.name.substring(file.name.length-3).toLowerCase(), file);
+
+    if (file.size > 15000000) {
+      if (currentFile.name) body.classed("blanked",false);
+      msg("shp-too-big");
+      uploadComplete();
+      return true;
+    }
 
     //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
     //Once whole server is running on Node this won't be necessary
@@ -1186,7 +1267,7 @@ function scaleMap() {
   map.attr("width",mapOptions.width)
     .attr("height",mapOptions.height);
 
-  //Update surrounding dive
+  //Update surrounding div
   mapBox
     .style("width",mapOptions.width+"px")
     .style("height",mapOptions.height+"px");

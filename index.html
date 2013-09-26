@@ -94,7 +94,7 @@
       <p>This will only work on modern browsers, and I wouldn't recommend using it on your smartphone.</p>
 
       <h3>To do list</h3>
-      <ul>        
+      <ul>                
         <li>Save a map to work on it later</li>
         <li>Option to add data file to a communal library</li>
         <li>Responsive scaling option for code download</li>
@@ -102,6 +102,7 @@
         <li>Pull in data from a Google spreadsheet with Tabletop.js</li>
         <li>Feature simplification</li>
         <li>Merge features</li>       
+        <li>Fix processing of shapefiles using a projected CRS</li>
         <li>Add a legend to a chloropleth</li>
         <li>Categorical chloropleths</li>
         <li>Support files with multiple geometry layers</li>
@@ -161,8 +162,9 @@
             <select id="input-projection">
               <option value="mercator">Mercator</option>
               <option value="conicEqualArea">Conic Equal Area (good for chloropleths)</option>
+              <option value="robinson">Robinson (good for whole world)</option>              
               <option value="equirectangular">Equirectangular (simple but distorting)</option>
-              <option value="albersUsa">Albers USA (for entire US, insets AK and HI)</option>
+              <option value="albersUsa">Albers USA (for whole US, insets AK and HI)</option>
             </select>
           </span>
         </div>
@@ -356,8 +358,11 @@
     <script src="js/jquery-1.10.2.min.js"></script>
 
     <!-- D3 and TopoJSON -->
-    <script src="js/d3.v3.min.js"></script>
-    <script src="js/topojson.v1.min.js"></script>
+    <script src="js/d3.v3.min.js" charset="utf-8"></script>
+    <script src="js/topojson.v1.min.js" charset="utf-8"></script>
+
+    <!-- For adding Robinson projection -->
+    <script src="http://d3js.org/d3.geo.projection.v0.min.js" charset="utf-8"></script>
 
     <!-- For code highlighting -->
     <script src="js/highlight.min.js"></script>

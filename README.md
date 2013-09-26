@@ -60,6 +60,7 @@ To do list
 * Responsive scaling option for code download
 * Built-in image fallbacks for code download
 * Pull in data from a Google spreadsheet with Tabletop.js
+* Fix processing of shapefiles using a projected CRS
 * Feature simplification
 * Merge features
 * Add a legend to a chloropleth
