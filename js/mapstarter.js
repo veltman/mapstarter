@@ -306,6 +306,9 @@ function loaded(newFile) {
           return "filled";
         })
         .on("click",clicked)
+        .on("mousemove",function(d,i) {
+          tooltip.style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px");
+        })
         .on("mouseover",function(d,i) {            
           var p = d3.select(this).filter(".filled");
           if (mapOptions.colorType == "simple") p.attr("fill",mapOptions.highlight);
@@ -316,17 +319,25 @@ function loaded(newFile) {
             tooltip.text(t).style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px").attr("class","");
           }
         })
-        .on("mousemove",function(d,i) {
-          tooltip.style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px");
-        })
         .on("mouseout",function(d,i) {
           var p = d3.select(this).filter(".filled");
-          if (!p.classed("clicked") && mapOptions.colorType == "simple") p.attr("fill",mapOptions.fill);
+          if (!p.empty() && !p.classed("clicked") && mapOptions.colorType == "simple") p.attr("fill",mapOptions.fill);
           if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#fff");
           tooltip.text("").attr("class","hidden");
-      });
+        });
       
       filledPaths = paths.filter(function(d) { return d.geometry.type != "LineString"; });
+
+      //If it's LineStrings only and stroke color is white, change to steelblue      
+      if (filledPaths.empty()) {
+        var rgb = d3.rgb(mapOptions.stroke);        
+        if (rgb.r == 255 && rgb.g == 255 && rgb.b == 255) {
+          mapOptions.stroke = "steelblue";
+          $("input#color-stroke").val("#4682B4");
+          paths.attr("stroke",mapOptions.stroke);              
+        }
+
+      }
 
       resetOptions();
       
