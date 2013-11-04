@@ -8,15 +8,24 @@
 		$shp_name = $_FILES["shp"]["tmp_name"];    
     	$success = move_uploaded_file($shp_name, $shp_name.".shp");
     	$upload = array('shp' => '@' . $shp_name.".shp");
+    	    	
+		$dbf_name = $_FILES["dbf"]["tmp_name"];
+	    $success = move_uploaded_file($dbf_name, $shp_name.".dbf");
+	    $upload["dbf"] = '@' . $shp_name.".dbf";
+
+		$shx_name = $_FILES["shx"]["tmp_name"];
+	    $success = move_uploaded_file($shx_name, $shp_name.".shx");
+	    $upload["shx"] = '@' . $shp_name.".shx";
+
+		if (isset($_FILES["prj"])) {
+			$prj_name = $_FILES["prj"]["tmp_name"];
+	    	$success = move_uploaded_file($prj_name, $shp_name.".prj");
+	    	$upload["prj"] = '@' . $shp_name.".prj";
+	    }
     	
-    	if (isset($_FILES["dbf"])) {
-			$dbf_name = $_FILES["dbf"]["tmp_name"];
-	    	$success = move_uploaded_file($dbf_name, $dbf_name.".dbf");
-	    	$upload["dbf"] = '@' . $dbf_name.".dbf";
-    	}
-	}
-    
-    $url = "http://dev.noahveltman.com/node/shp-to-geo";
+	}    
+
+    $url = "http://mapstarter.com/convert/shp-to-geo";
 	//$url = "http://ogre.adc4gis.com/convert";
 
 	$ch = curl_init($url);

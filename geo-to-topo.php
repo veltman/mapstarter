@@ -6,7 +6,7 @@
 		echo '{"error": "GeoJSON is too large to convert."}';
 	}else {
 
-		$url = "http://dev.noahveltman.com/node/geo-to-topo";
+		$url = "http://mapstarter.com/convert/geo-to-topo";
 
 		$ch = curl_init($url);		
 		curl_setopt($ch, CURLOPT_POST, TRUE);

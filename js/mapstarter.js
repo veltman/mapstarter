@@ -65,11 +65,15 @@ var messages = {
   },
   "invalid-file": {
     "type": "error",
-    "text": "Invalid file.  If you're submitting a shapefile, make sure you submit the .shp file, or a .zip file containing it."
+    "text": "Invalid file.  If you're submitting a shapefile, make sure you submit the .shp file, .dbf file, and .shx file, or a .zip file containing all three."
   },
-  "no-dbf": {
+  "no-prj": {
     "type": "warn",
-    "text": "Your map won't include any feature attributes (like names).  Either your data has none, or you didn't upload the .dbf file stored in the shapefile.  To include those attributes, make sure you submit both the .shp and .dbf file, or a .zip file containing both."
+    "text": "Your shapefile didn't include a .prj file, so you might get weird results.  If you get a blank map, try re-submitting with the .prj file included."
+  },
+  "out-of-bounds": {
+    "type": "warn",
+    "text": "Your coordinates appear to be a little weird. If you submitted a shapefile, try resubmitting with the .prj file included."
   },
   "bad-albers": {
     "type": "warn",
@@ -741,16 +745,20 @@ function readFiles(files) {
 
   if (files.length == 1) {
     singleFile(files[0]);
-  } else {
-    var shp = [], dbf = [];
+  } else {    
+
+    var shp = [], dbf = [], prj = [], shx = [];
 
     for (var i = 0; i < files.length; i++) {
       if (files[i].name.match(/[.]shp$/i)) shp.push(files[i]);
       else if (files[i].name.match(/[.]dbf$/i)) dbf.push(files[i]);
+      else if (files[i].name.match(/[.]prj$/i)) prj.push(files[i]);
+      else if (files[i].name.match(/[.]shx$/i)) shx.push(files[i]);
     }
 
-    if (shp.length == 1 && dbf.length <= 1) {      
-      multiFile(shp[0],dbf[0]);
+    if (shp.length == 1 && dbf.length == 1 && shx.length == 1) { 
+      if (prj.length != 1) prj[0] = false;
+      multiFile(shp[0],dbf[0],shx[0],prj[0]);
     } else {
       msg("invalid-file");
       uploadComplete();   
@@ -781,13 +789,13 @@ function singleFile(file) {
       }
 
       if (!newFile.type) {
-        singleShapefile(file);
+        zippedShapefile(file);
       } else {
         loaded(newFile);
-      }            
+      }
                 
     } catch(err) {  
-      singleShapefile(file);                     
+      zippedShapefile(file);                     
       return false;            
     }                  
     
@@ -800,16 +808,17 @@ function singleFile(file) {
 
 }      
 
-//Try file as a .shp file and a .dbf file
-function multiFile(shp,dbf) {
+//Try file as a .shp file, .dbf file, .prj, and .shx file
+function multiFile(shp,dbf,shx,prj) {
 
     //Create form with file upload
     var formData = new FormData();
     formData.append('shp', shp);
-    if (dbf) formData.append('dbf', dbf);
-    else msg("no-dbf");
+    formData.append('dbf', dbf);
+    formData.append('shx', shx);
+    if (prj) formData.append('prj', prj);
 
-    if (shp.size + dbf.size > 15000000) {
+    if (shp.size + dbf.size + shx.size + prj.size > 15000000) {
       msg("shp-too-big");
       uploadComplete();
       return true;
@@ -818,6 +827,9 @@ function multiFile(shp,dbf) {
     //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
     //Once whole server is running on Node this won't be necessary
     d3.xhr("shp-to-geo.php").post(formData,function(error,response) {                
+
+      console.log(error);
+      console.log(response);
 
       try {
         var newFile = {name: shp.name.replace(/[.]shp$/i,".geojson"), size: response.responseText.length, data: {topo: null, geo: fixGeo(JSON.parse(response.responseText))}, type: "geojson"};
@@ -829,6 +841,8 @@ function multiFile(shp,dbf) {
       }
 
       loaded(newFile);
+
+      if (!prj && d3.select("div.out-of-bounds").empty()) msg("no-prj");
 
       return true;
 
@@ -1131,6 +1145,8 @@ function chooseDefaultProjection(data) {
     b = d3.geo.bounds(data),
     c = d3.geo.centroid(data);
 
+  if (b[0][0] < -180 || b[1][0] > 180 || b[0][1] < -90 || b[1][1] > 90) msg("out-of-bounds");
+
   if (isUSA(a,b)) {
     mapOptions.projectionType = "albersUsa";
   } else if (isWorld(a)) {
@@ -1185,10 +1201,10 @@ function uploadComplete() {
 }
 
 //Try file as a zipped shapefile
-function singleShapefile(file) {
+function zippedShapefile(file) {  
 
   //Require .zip extension
-  if (file.name.match(/[.](zip|shp)$/i)) {
+  if (file.name.match(/[.]zip$/i)) {
 
     //Create form with file upload
     var formData = new FormData();
@@ -1204,24 +1220,9 @@ function singleShapefile(file) {
     //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
     //Once whole server is running on Node this won't be necessary
     d3.xhr("shp-to-geo.php").post(formData,function(error,response) {          
+
       try {
-        var newFile = {name: file.name.replace(/[.](shp|zip)$/i,".geojson"), size: response.responseText.length, data: {topo: null, geo: fixGeo(JSON.parse(response.responseText))}, type: "geojson"};
-
-        var hasDbf = false;
-
-        //My first JavaScript label!
-        dbfCheck:
-        for (var i = 0; i < newFile.data.geo.features.length; i++) {
-          if ("properties" in newFile.data.geo.features[i]) {
-            for (var p in newFile.data.geo.features[i].properties) {
-              hasDbf = true;
-              break dbfCheck;
-            }
-          }
-        }
-
-        if (!hasDbf) msg("no-dbf");
-
+        var newFile = {name: file.name.replace(/[.]zip$/i,".geojson"), size: response.responseText.length, data: {topo: null, geo: fixGeo(JSON.parse(response.responseText))}, type: "geojson"};
       } catch(err) {
         if (currentFile.name) body.classed("blanked",false);
         msg("invalid-file");
@@ -1239,7 +1240,7 @@ function singleShapefile(file) {
   } else {
     if (currentFile.name) body.classed("blanked",false);
     msg("invalid-file");
-    uploadComplete();    
+    uploadComplete();
 
   }
 }
