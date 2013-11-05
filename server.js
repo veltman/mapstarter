@@ -7,6 +7,7 @@ var logFile = fs.createWriteStream('./mapstarter.log', {flags: 'a'});
 
 app.use(express.bodyParser({limit: '100mb'}));
 app.use(express.logger({format: ':remote-addr - - [:date] ":method :url HTTP/:http-version" :status :res[content-length] (:response-time ms) ":referrer" ":user-agent"', stream: logFile}));
+app.use(express.compress());
 
 app.post(/^\/?convert\/geo-to-topo\/?$/,function(req,res) {
 
@@ -44,6 +45,8 @@ app.post(/^\/?convert\/geo-to-topo\/?$/,function(req,res) {
 
 app.post(/^\/?convert\/shp-to-geo\/?$/,function(req,res) {
 
+	console.log(req);
+
     res.setHeader('Content-Type', 'application/json');    
 
     if (!req.body || !req.files || (!req.files.zip && (!req.files.shp || !req.files.dbf || !req.files.shx))) {
@@ -75,12 +78,10 @@ app.post(/^\/?convert\/shp-to-geo\/?$/,function(req,res) {
 			    data += buf;
 			};
 
-			outStream.end = function () {    
-			    console.log("finished stream");
+			outStream.end = function () {    			    
 			    res.send(data);
 
 			    paths.forEach(function(p) {
-			    	console.log("deleting "+p);
 			    	fs.unlinkSync(p);
 			    })
 			};
@@ -98,8 +99,6 @@ app.post(/^\/?convert\/shp-to-geo\/?$/,function(req,res) {
 				fs.renameSync(req.files[f].path,req.files.shp.path.replace(/[.][a-z]+$/i,"."+f));
 				paths.push(req.files.shp.path.replace(/[.][a-z]+$/i,"."+f));
 			});
-			
-			console.log(paths);
 
 			var outStream = new Stream;    		
     		outStream.writable = true;
@@ -110,12 +109,10 @@ app.post(/^\/?convert\/shp-to-geo\/?$/,function(req,res) {
 			    data += buf;
 			};
 
-			outStream.end = function () {
-			    console.log("finished stream");
+			outStream.end = function () {			    
 			    res.send(data);
 
 			    paths.forEach(function(p) {
-			    	console.log("deleting "+p);
 			    	fs.unlinkSync(p);
 			    })
 			};    		
@@ -157,7 +154,7 @@ app.post(/^\/?convert\/shp-to-geo\/?$/,function(req,res) {
 
 app.get(/.*/,function(req,res) {	
 
-	var path = '/var/mapstarter/www'+req.url;	
+	var path = '/var/mapstarter/www'+req.url;		
 
 	fs.stat(path,function(err, stats) {
 		if (err) {
@@ -170,10 +167,11 @@ app.get(/.*/,function(req,res) {
 			return true;
 		}
 
-		var indexPath = path.replace(/\/+$/,"")+"/index.html";
+		var indexPath = path.replace(/\/+$/,"")+"/index.html";		
 
 		fs.stat(indexPath,function(err2, stats2) {			
-			if (err || !stats2 || !stats2.isDirectory()) {
+
+			if (err2 || !stats2 || stats2.isDirectory()) {
 				res.send(404, 'Sorry, '+req.url+' doesn\'t exist!');
 				return false;
 			}
