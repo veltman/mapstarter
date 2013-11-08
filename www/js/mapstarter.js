@@ -946,7 +946,7 @@ function updateDownloads(type) {
 }
 
 //Update the map projection, auto-setting parallels or centers based on data
-function updateProjection(data,width,height) {                          
+function updateProjection(data,width,height) {                            
 
   //Projection at unit scale
   mapOptions.projection = d3.geo[mapOptions.projectionType]()
@@ -979,8 +979,6 @@ function updateProjection(data,width,height) {
   mapOptions.projection.scale(s);
 
   if ("parallels" in mapOptions.projection) {    
-
-    console.log(t);
 
     mapOptions.projection.translate(t);
 
@@ -1050,7 +1048,11 @@ function autoCrop() {
 
   }
 
-  mapOptions.projection.translate([mapOptions.width/2,mapOptions.height/2]);
+  if ("parallels" in mapOptions.projection) {
+    scaleMap();
+  } else {
+    mapOptions.projection.translate([mapOptions.width/2,mapOptions.height/2]);
+  }  
 
   paths.attr("d",mapOptions.path);
 
