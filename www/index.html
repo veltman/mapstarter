@@ -87,7 +87,7 @@
       <p>Mike Bostock.</p>
 
       <h3>Some details/caveats</h3>     
-      <p>A shapefile is typically composed of several actual files.  To import one, you need to import the .shp file.  Assuming you want to include the attributes (like country names) as part of the map, you'll also need to import the .dbf file.  To import both files at once, you can either select them both (or drag them both onto the target), or you can submit a .zip file that includes both of them.</p>
+      <p>A shapefile is typically composed of several actual files.  To import one, you need to import the .shp file, the .prj file, and the .shx file.  Assuming you want to include the attributes (like country names) as part of the map, you'll also need to import the .dbf file.  To import these files, you can either select them all (or drag them all onto the target), or you can submit a .zip file that includes all of them.  If you accidentally include unnecessary files, that's fine, they'll just get ignored.</p>
       <p>This will currently only support a single layer of geometries.  If, for example, you have a TopoJSON file with census tracts, counties, and states, all stored separately, it will only draw one of them.  I hope to fix this (see <strong>To do list</strong>).</p>
       <p>If you download the code for your map, it will rely on <a href="http://d3js.org/">D3</a> for most of the heavy lifting.  D3 is not compatible with IE8 and below, so if you need to serve old browsers, make sure you include an image fallback of some sort.</p>
       <p>If you already have GeoJSON/TopoJSON, you can run this without an internet connection.  The only pieces that require an internet connection are importing a shapefile and converting from GeoJSON to TopoJSON.  If you want to run it locally, you can clone the <a href="https://github.com/veltman/mapstarter">GitHub repository</a> and open index.html.</p>
@@ -102,7 +102,6 @@
         <li>Pull in data from a Google spreadsheet with Tabletop.js</li>
         <li>Feature simplification</li>
         <li>Merge features</li>       
-        <li>Fix processing of shapefiles using a projected CRS</li>
         <li>Add a legend to a choropleth</li>
         <li>Categorical choropleths</li>
         <li>Support files with multiple geometry layers</li>
@@ -124,6 +123,7 @@
         <li>If you're just generally map-curious, I wrote a <a href="https://github.com/veltman/learninglunches/tree/master/maps">broad overview on geodata and web maps</a>.</li>
         <li>If you want to make a few basic edits to your underlying data, <a href="http://geojson.io/">geojson.io</a> is pretty handy.  If you want to do more in-depth editing, you'll need desktop software. The fancy and very expensive option is <a href="http://www.esri.com/software/arcgis">ArcGIS</a>; I recommend <a href="http://www.qgis.org/">QGIS</a>, which is free, probably does everything you need, and is more beginner-friendly than you might think.</li>
         <li>To convert a shapefile to GeoJSON, you can use ADC's <a href="http://ogre.adc4gis.com/">online converter</a>.</li>
+        <li>If you want to simplify the geometry of your data file, Matthew Bloch's <a href="http://mapshaper.org/">Mapshaper</a> is fantastic.</li>
         <li>If you're a coder or code-curious and have some JavaScript under your belt, Mike Bostock has a great <a href="http://bost.ocks.org/mike/map/">detailed walkthrough</a> that introduces you to many of the fundamentals of mapping with D3.  You can also consult the <a href="https://github.com/mbostock/d3/wiki/Gallery#maps">bountiful list of examples</a>.  I'd probably start with <a href="http://bl.ocks.org/mbostock/4060606">this one</a>.
         </li>
         <li>If you want to make a slippy, Google Maps-style tile map, I highly recommend <a href="http://leafletjs.com/">Leaflet</a>.  It's delightful.  Another option is <a href="http://modestmaps.com/">Modest Maps</a>.</li>

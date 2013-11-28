@@ -42,7 +42,7 @@ Mike Bostock.
 Some details/caveats
 --------------------
 
-A shapefile is typically composed of several actual files.  To import one, you need to import the .shp file.  Assuming you want to include the attributes (like country names) as part of the map, you'll also need to import the .dbf file.  To import both files at once, you can either select them both (or drag them both onto the target), or you can submit a .zip file that includes both of them.
+A shapefile is typically composed of several actual files.  To import one, you need to import the .shp file, the .prj file, and the .shx file.  Assuming you want to include the attributes (like country names) as part of the map, you'll also need to import the .dbf file.  To import these files, you can either select them all (or drag them all onto the target), or you can submit a .zip file that includes all of them.  If you accidentally include unnecessary files, that's fine, they'll just get ignored.
 
 This will currently only support a single layer of geometries.  If, for example, you have a TopoJSON file with census tracts, counties, and states, all stored separately, it will only draw one of them.  I hope to fix this (see **To do list**).
 
@@ -60,7 +60,6 @@ To do list
 * Responsive scaling option for code download
 * Built-in image fallbacks for code download
 * Pull in data from a Google spreadsheet with Tabletop.js
-* Fix processing of shapefiles using a projected CRS
 * Feature simplification
 * Merge features
 * Add a legend to a choropleth
@@ -82,8 +81,8 @@ Appendix: other tools and resources
 * If you're a map-curious beginner, or just want to better understand what the hell GeoJSON and TopoJSON are, I wrote a [broad overview on geodata and web maps](https://github.com/veltman/learninglunches/tree/master/maps).
 * If you want to make a few basic edits to your underlying data, [geojson.io](http://geojson.io/) is pretty handy.  If you want to do more in-depth editing, you'll need desktop software. The fancy and very expensive option is [ArcGIS](http://www.esri.com/software/arcgis); I recommend [QGIS](http://www.qgis.org/), which is free, probably does everything you need, and is more beginner-friendly than you might think.
 * To convert a shapefile to GeoJSON, you can use ADC's [online converter](http://ogre.adc4gis.com/).
+* If you want to simplify the geometry of your data file, Matthew Bloch's [Mapshaper](http://mapshaper.org/) is fantastic.
 * If you're a coder or code-curious and have some JavaScript under your belt, Mike Bostock has a great [detailed walkthrough](http://bost.ocks.org/mike/map/) that introduces you to many of the fundamentals of mapping with D3.  You can also consult the [bountiful list of examples](https://github.com/mbostock/d3/wiki/Gallery#maps).  I'd probably start with [this one](http://bl.ocks.org/mbostock/4060606).
-
 * If you want to make a slippy, Google Maps-style tile map, I highly recommend [Leaflet](http://leafletjs.com/).  It's delightful.  Another option is [Modest Maps](http://modestmaps.com/).
 * Shan Carter has a [nice tool for converting GeoJSON to TopoJSON](http://shancarter.github.io/distillery/).
 * If you want to make a tile map with custom tiles, you can get pretty far with [CloudMade](http://cloudmade.com/) or [MapBox](http://www.mapbox.com/).  For full control, you'll probably want to use [TileMill](http://mapbox.com/tilemill/).  Lisa Williams has a [tutorial on getting started with TileMill](http://dataforradicals.com/the-insanely-illustrated-guide-to-your-first-tile-mill-map/).
