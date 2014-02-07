@@ -1206,7 +1206,8 @@ function clicked(d) {
 
   if (mapOptions.colorType == "simple") filledPaths.attr("fill", function(d) { return (centered && d === centered) ? mapOptions.highlight : mapOptions.fill; });
 
-  features.transition()
+  features
+      .transition()
       .duration(500)
       .attr("transform", "translate(" + mapOptions.width / 2 + "," + mapOptions.height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")");
 }
