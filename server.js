@@ -154,7 +154,7 @@ app.post(/^\/?convert\/shp-to-geo\/?$/,function(req,res) {
 
 app.get(/.*/,function(req,res) {	
 
-	var path = '/var/mapstarter/www'+req.url;		
+	var path = './www'+req.url;		
 
 	fs.stat(path,function(err, stats) {
 		if (err) {
@@ -184,4 +184,4 @@ app.get(/.*/,function(req,res) {
 
 });
 
-app.listen(80);
+app.listen(3000);
