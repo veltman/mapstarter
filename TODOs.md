@@ -1,3 +1,3 @@
-* Smooth zoom
 * Add new column to data
 * Data joins
+* Hover vs. active state color

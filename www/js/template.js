@@ -221,8 +221,8 @@ function generateCode(file,options) {
                 '  //Zoom and re-center the map',
                 '  //Uncomment .transition() and .duration() to make zoom gradual',
                 '  features',
-                '      //.transition()',
-                '      //.duration(500)',
+                '      .transition()',
+                '      .duration(500)',
                 '      .attr("transform","translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")");',
                 '}',
                 ''
