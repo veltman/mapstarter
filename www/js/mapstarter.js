@@ -122,7 +122,23 @@ $(document).ready(function() {
 });
 
 //Process newly loaded data
-function loaded(newFile) {          
+function loaded(newFile) {       
+      var value_data = [ 
+        {
+          "state_name": 'AK',
+          "awesomeness": '1',
+          "coldness": 200
+        }, 
+        {
+          "state_name": 'CA',
+          "awesomeness": '100'
+        }, 
+        {
+          "state_name": 'NY',
+          "awesomeness": '75'
+        }
+      ]
+
 
       body.classed("blanked",false);      
 
@@ -136,6 +152,7 @@ function loaded(newFile) {
       chooseDefaultProjection(currentFile.data.geo);      
 
       //Get distinct properties for the attribute table, try to put ID and Name columns first, otherwise leave it alone
+      // currentFile.data.geo.features = joinData(currentFile.data.geo.features, 'id', value_data, 'state_name')
       var set = d3.set();
 
       if (currentFile.data.topo) {
@@ -182,7 +199,6 @@ function loaded(newFile) {
 
       //Stringify any non-primitive data values
       attributesColumns.forEach(function(a,i) {
-
         if (!i) mapOptions.choropleth.attribute = a;
 
         attributesRows.append("td")
