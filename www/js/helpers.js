@@ -123,3 +123,15 @@ function parseNumber(val) {
 
   return null;
 }
+
+// Underscore's _.extend fn for data joining. We don't need all of underscore, though.
+function extend(obj) {
+  Array.prototype.slice.call(arguments, 1).forEach( function(source) {
+    if (source) {
+      for (var prop in source) {
+        obj[prop] = source[prop];
+      }
+    }
+  });
+  return obj;
+};
