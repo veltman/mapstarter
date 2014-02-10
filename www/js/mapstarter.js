@@ -712,7 +712,7 @@ function setListeners() {
 
           //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
           //Once whole server is running on Node this won't be necessary
-          $.post("geo-to-topo.php",{geojson: stringified},function(topo) {
+          $.post("/convert/geo-to-topo/",{geojson: stringified},function(topo) {
             currentFile.data.topo = fixTopo(topo);
             setFileType(to); 
           },"json");
@@ -839,7 +839,7 @@ function multiFile(shp,dbf,shx,prj) {
 
     //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
     //Once whole server is running on Node this won't be necessary
-    d3.xhr("shp-to-geo.php").post(formData,function(error,response) {                
+    d3.xhr("/convert/shp-to-geo/").post(formData,function(error,response) {               
 
       console.log(error);
       console.log(response);
@@ -1114,7 +1114,7 @@ function zippedShapefile(file) {
 
     //Pass file to a wrapper that will cURL the real converter, gets around cross-domain
     //Once whole server is running on Node this won't be necessary
-    d3.xhr("shp-to-geo.php").post(formData,function(error,response) {          
+    d3.xhr("/convert/shp-to-geo/").post(formData,function(error,response) {       
 
       try {
         var newFile = {name: file.name.replace(/[.]zip$/i,".geojson"), size: response.responseText.length, data: {topo: null, geo: fixGeo(JSON.parse(response.responseText))}, type: "geojson"};
