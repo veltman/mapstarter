@@ -19,7 +19,7 @@ Running the server
 node server.js
 ````
 
-Open `0.0.0.0:3000` in your browser
+Open `0.0.0.0:3000` in your browser.
 
 How does it work?
 -----------------
