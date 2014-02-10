@@ -1,0 +1,35 @@
+{
+  "name": "mapstarter",
+  "version": "0.1.0",
+  "description": "A tool for turning a geographic data file into a map for the web.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mhkeller/mapstarter.git"
+  },
+  "keywords": [
+    "d3",
+    "maps",
+    "svg",
+    "geojson",
+    "topojson"
+  ],
+  "authors": [
+    "Noah Veltman",
+    "Michael Keller"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mhkeller/mapstarter/issues"
+  },
+  "homepage": "https://github.com/mhkeller/mapstarter",
+  "dependencies": {
+    "shp2json": "~0.1.3",
+    "stream": "0.0.1",
+    "express": "~3.4.8"
+  }
+}
