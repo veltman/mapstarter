@@ -121,8 +121,7 @@ $(document).ready(function() {
 
 });
 
-//Process newly loaded data
-function loaded(newFile) {       
+function joinNewData() {
       var value_data = [ 
         {
           "state_name": 'AK',
@@ -138,21 +137,15 @@ function loaded(newFile) {
         }
       ]
 
-
-      body.classed("blanked",false);      
-
-      currentFile = newFile;      
-
-      if (!currentFile.skip) currentFile.skip = [];
-
-      switchLinks.datum(currentFile.type == "geojson" ? "topojson" : "geojson");
-
-      //Choose a projection based on the data
-      chooseDefaultProjection(currentFile.data.geo);      
-
-      //Get distinct properties for the attribute table, try to put ID and Name columns first, otherwise leave it alone
       currentFile.data.geo.features = joinGeoJson(currentFile.data.geo.features, 'STATE_ABBR', value_data, 'state_name')
+      setAttributeTable()
+      insertPathsForHighlighting()
+      scaleMap()
+      recolor()
+}
 
+function setAttributeTable(){
+      //Get distinct properties for the attribute table, try to put ID and Name columns first, otherwise leave it alone
       var set = d3.set();
 
       if (currentFile.data.topo) {
@@ -306,55 +299,75 @@ function loaded(newFile) {
           .html('<span>&times;</span>&nbsp;Remove');
 
       paths.remove();
+}
+
+function insertPathsForHighlighting(){
+      paths = features.selectAll("path").data(currentFile.data.geo.features).enter().append("path")
+            .attr("stroke-width",mapOptions.strokeWidth)
+            .attr("stroke",mapOptions.stroke)        
+            .attr("id",function(d,i) {
+              return "path"+i;
+            })
+            .attr("fill",function(d) {
+              if (d.geometry.type == "LineString") return "none";
+              return null;
+            })
+            .attr("class",function(d) {
+              if (d.geometry.type == "LineString") return null;
+              return "filled";
+            })
+            .on("click",clicked)
+            .on("mousemove",function(d,i) {
+              tooltip.style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px");
+            })
+            .on("mouseover",function(d,i) {            
+              var p = d3.select(this).filter(".filled");
+              if (mapOptions.colorType == "simple") p.attr("fill",mapOptions.highlight);
+              if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#e6e6e6");
+
+              if (mapOptions.tooltip) {            
+                var t = (typeof d.properties[mapOptions.tooltip] == "string" || d.properties[mapOptions.tooltip] == "number") ? d.properties[mapOptions.tooltip] : JSON.stringify(d.properties[mapOptions.tooltip]);
+                tooltip.text(t).style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px").attr("class","");
+              }
+            })
+            .on("mouseout",function(d,i) {
+              var p = d3.select(this).filter(".filled");
+              if (!p.empty() && !p.classed("clicked") && mapOptions.colorType == "simple") p.attr("fill",mapOptions.fill);
+              if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#fff");
+              tooltip.text("").attr("class","hidden");
+            });
+          
+          filledPaths = paths.filter(function(d) { return d.geometry.type != "LineString"; });
+
+          //If it's LineStrings only and stroke color is white, change to steelblue      
+          if (filledPaths.empty()) {
+            var rgb = d3.rgb(mapOptions.stroke);        
+            if (rgb.r == 255 && rgb.g == 255 && rgb.b == 255) {
+              mapOptions.stroke = "steelblue";
+              $("input#color-stroke").val("#4682B4");
+              paths.attr("stroke",mapOptions.stroke);              
+            }
+
+          }
+}
+
+//Process newly loaded data
+function loaded(newFile) {       
+
+      body.classed("blanked",false);      
+
+      currentFile = newFile;      
+      if (!currentFile.skip) currentFile.skip = [];
+
+      switchLinks.datum(currentFile.type == "geojson" ? "topojson" : "geojson");
+
+      //Choose a projection based on the data
+      chooseDefaultProjection(currentFile.data.geo);      
+
+      setAttributeTable()
 
       //Insert paths with hover events for highlighting
-      paths = features.selectAll("path").data(currentFile.data.geo.features).enter().append("path")
-        .attr("stroke-width",mapOptions.strokeWidth)
-        .attr("stroke",mapOptions.stroke)        
-        .attr("id",function(d,i) {
-          return "path"+i;
-        })
-        .attr("fill",function(d) {
-          if (d.geometry.type == "LineString") return "none";
-          return null;
-        })
-        .attr("class",function(d) {
-          if (d.geometry.type == "LineString") return null;
-          return "filled";
-        })
-        .on("click",clicked)
-        .on("mousemove",function(d,i) {
-          tooltip.style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px");
-        })
-        .on("mouseover",function(d,i) {            
-          var p = d3.select(this).filter(".filled");
-          if (mapOptions.colorType == "simple") p.attr("fill",mapOptions.highlight);
-          if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#e6e6e6");
-
-          if (mapOptions.tooltip) {            
-            var t = (typeof d.properties[mapOptions.tooltip] == "string" || d.properties[mapOptions.tooltip] == "number") ? d.properties[mapOptions.tooltip] : JSON.stringify(d.properties[mapOptions.tooltip]);
-            tooltip.text(t).style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px").attr("class","");
-          }
-        })
-        .on("mouseout",function(d,i) {
-          var p = d3.select(this).filter(".filled");
-          if (!p.empty() && !p.classed("clicked") && mapOptions.colorType == "simple") p.attr("fill",mapOptions.fill);
-          if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#fff");
-          tooltip.text("").attr("class","hidden");
-        });
-      
-      filledPaths = paths.filter(function(d) { return d.geometry.type != "LineString"; });
-
-      //If it's LineStrings only and stroke color is white, change to steelblue      
-      if (filledPaths.empty()) {
-        var rgb = d3.rgb(mapOptions.stroke);        
-        if (rgb.r == 255 && rgb.g == 255 && rgb.b == 255) {
-          mapOptions.stroke = "steelblue";
-          $("input#color-stroke").val("#4682B4");
-          paths.attr("stroke",mapOptions.stroke);              
-        }
-
-      }
+      insertPathsForHighlighting()
 
       resetOptions();
       
