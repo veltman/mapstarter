@@ -1,7 +1,6 @@
 function addNulls(data, null_key_obj, path){
 	data.forEach(function(datum){
 		if (path) datum = datum[path] 
-		console.log(path, datum)
 		// Create copies of our objects so they dont' get overwritten
 		var null_key_obj_persist = extend({}, null_key_obj),
 				datum_persist        = extend({}, datum);
