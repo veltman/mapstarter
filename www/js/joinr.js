@@ -1,5 +1,7 @@
-function addNulls(data, null_key_obj){
+function addNulls(data, null_key_obj, path){
 	data.forEach(function(datum){
+		if (path) datum = datum[path] 
+		console.log(path, datum)
 		// Create copies of our objects so they dont' get overwritten
 		var null_key_obj_persist = extend({}, null_key_obj),
 				datum_persist        = extend({}, datum);
@@ -38,8 +40,9 @@ function indexRightDataOnKey(right_data, right_key_column){
 	return key_map
 }
 
-function joinOnMatch(left_data, left_key_column, key_map){
+function joinOnMatch(left_data, left_key_column, key_map, path){
 	left_data.forEach(function(datum){
+		if (path) datum = datum[path] 
 		var key   = datum[left_key_column],
 		    match = key_map[key];
 		if (match){
@@ -49,32 +52,46 @@ function joinOnMatch(left_data, left_key_column, key_map){
 	return left_data
 }
 
-function joinData(left_data, left_key_column, right_data, right_key_column){
+function joinData(left_data, left_key_column, right_data, right_key_column, path){
 	var key_map             = indexRightDataOnKey(right_data, right_key_column),
-			joined_data         = joinOnMatch(left_data, left_key_column, key_map),
-			joined_data_w_nulls = addNulls(joined_data, key_map.null_match);
+			joined_data         = joinOnMatch(left_data, left_key_column, key_map, path),
+			joined_data_w_nulls = addNulls(joined_data, key_map.null_match, path);
 	return joined_data_w_nulls;
 }
+
+function joinGeoJson(left_data, left_key_column, right_data, right_key_column, path){
+	if (!path) path = 'properties';
+	return joinData(left_data, left_key_column, right_data, right_key_column, path);
+}
+
 /*
 var geo_key   = 'name',
 		value_key = 'state_name';
 
 var geo_data = [ 
 		{
-			"name": 'AK',
-			"geom": '1'
+			"properties": {
+				"name": 'AK',
+				"geom": '1'
+			}
 		}, 
 		{
-			"name": 'CA',
-			"geom": '2'
+			"properties": {
+				"name": 'CA',
+				"geom": '2'
+			}
 		}, 
 		{
-			"name": 'NY',
-			"geom": '3'
+			"properties": {
+				"name": 'NY',
+				"geom": '3'
+			}
 		},
 		{
-			"name": 'LA',
-			"geom": '4'
+			"properties": {
+				"name": 'LA',
+				"geom": '4'
+			}
 		}
 	]
 
@@ -94,9 +111,9 @@ var value_data = [
 		}
 	]
 
-var joined_data = joinData(geo_data, geo_key, value_data, value_key)
+var joined_data = joinData(geo_data, geo_key, value_data, value_key, 'properties')
 console.log(joined_data)
-
+/*
 [ { name: 'AK', geom: '1', awesomeness: '1', coldness: 200 },
   { name: 'CA', geom: '2', awesomeness: '100', coldness: null },
   { name: 'NY', geom: '3', awesomeness: '75', coldness: null },
