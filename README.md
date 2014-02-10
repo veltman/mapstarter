@@ -5,6 +5,22 @@ Mapstarter is a tool for turning a geographic data file into a map for the web.
 
 This is a work in progress.  Got ideas?  Requests?  Complaints?  Data files that didn't work?  Let me know! (see **Get in touch** below)
 
+Installation
+-----------------
+````
+git clone https://github.com/mhkeller/mapstarter.git
+cd mapstarter
+npm install
+````
+
+Running the server
+-----------------
+````
+node server.js
+````
+
+Open `0.0.0.0:3000` in your browser
+
 How does it work?
 -----------------
 
