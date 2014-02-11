@@ -704,7 +704,6 @@ function setListeners() {
   $("button#join-attribute-submit").click(function(){
     var leftKey  = $('#join-attribute-left').val(),
         rightKey = $('#join-attribute-right').val();
-    console.log(leftKey, rightKey)
     joinNewData(leftKey, rightKey);
   })
 

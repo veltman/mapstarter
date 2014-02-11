@@ -25,15 +25,19 @@ function indexRightDataOnKey(right_data, right_key_column){
 			null_match: {}
 	};
 	right_data.forEach(function(datum){
-		var right_key_value = datum[right_key_column];
+		// Copy this value because we're going to be deleting the match column
+		// And we don't want that column to be deleted the next time we join, if we want to join without reloading data
+		// This will delete the copy, but keep the original data next time the function is run
+		var datum_persist = extend({}, datum)
+		var right_key_value = datum_persist[right_key_column];
 		if (!key_map[right_key_value]){
 			// Get rid of the original name key since that will just be a duplicate
-			delete datum[right_key_column];
-			key_map[right_key_value] = datum;
+			delete datum_persist[right_key_column];
+			key_map[right_key_value] = datum_persist;
 			// Log the new keys that we've encountered for a comprehensive list at the end
-			addToNullMatch(key_map, Object.keys(datum));
+			addToNullMatch(key_map, Object.keys(datum_persist));
 		}else{
-			throw new Error('Duplicate entry for "' +  right_key_value + '"');
+			console.error('Duplicate entry for "' +  right_key_value + '"');
 		}
 	})
 	return key_map
