@@ -299,6 +299,11 @@ span.form-item label.radio {
   margin-left: 4px;
 }
 
+/* font-size: 14px; set for `input`s causes misalignment with button. Fix for now. */
+#upload-join-file{
+  font-size: 11px;
+}
+
 /* SIZE/PROJECTION */
 
 div#section-size div.panel-group span.form-item label {
@@ -473,6 +478,14 @@ div#attributes-outer {
   max-height: 240px;
   overflow-y: auto;
   border: 1px solid #ccc;  
+}
+
+.join-attribute-item{
+  display: none;
+}
+
+#join-attribute-submit{
+  padding: 5px;
 }
 
 /* LOADING TOGGLES */

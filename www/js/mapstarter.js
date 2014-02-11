@@ -9,6 +9,7 @@ var body,
   paths,
   filledPaths,
   upload,
+  joinDataFile,
   attributesHeader,        
   attributesBody,
   code,
@@ -20,7 +21,8 @@ var body,
   attributesSortColumn, attributesSortDir = -1;
 
 //Need this as jQuery for now, D3 click simulation for upload not working
-var $uploadFile;
+var $uploadFile,
+    $uploadJoinFile;
 
 //Storing file properties
 var currentFile = {
@@ -110,9 +112,10 @@ $(document).ready(function() {
   attributesHeader = attributesTable.select("thead");
   attributesBody = attributesTable.select("tbody");
   tooltip = body.select("div#tooltip");
-  code = body.select("code#download-code");    
+  code = body.select("code#download-code");
 
-  $uploadFile = $("#upload-file");
+  $uploadFile     = $("#upload-file");
+  $uploadJoinFile = $('#upload-join-file');
 
   setListeners();
 
@@ -121,23 +124,8 @@ $(document).ready(function() {
 
 });
 
-function joinNewData() {
-      var value_data = [ 
-        {
-          "state_name": 'AK',
-          "coldness": 200
-        }, 
-        {
-          "state_name": 'CA',
-          "coldness": '0'
-        }, 
-        {
-          "state_name": 'NY',
-          "coldness": '100'
-        }
-      ]
-
-      currentFile.data.geo.features = joinGeoJson(currentFile.data.geo.features, 'STATE_ABBR', value_data, 'state_name')
+function joinNewData(leftKey, rightKey) {
+      currentFile.data.geo.features = joinGeoJson(currentFile.data.geo.features, leftKey, joinDataFile, rightKey)
       setAttributeTable()
       insertPathsForHighlighting()
       scaleMap()
@@ -388,6 +376,15 @@ function loaded(newFile) {
 
 }
 
+function populateJoinKeyDropdown(){
+  $("select.join-attribute-item").prop("disabled",false)
+  $(".join-attribute-item").show()
+  var rightKeys = Object.keys(joinDataFile[0]);
+  rightKeys.forEach(function(a, i){
+    $("select.attribute-list-right").append($("<option />").val(a).text(a));
+  })
+}
+
 //Throw an error message
 function msg(key) {
 
@@ -544,11 +541,17 @@ function resetOptions() {
 function setListeners() {
     
   //When that input changes, attempt to read the file
-  $uploadFile.on("change",function() {
+  // $uploadFile.on("change",function() {
+  //   if ($(this)[0].files.length) {
+  //     readFiles($(this)[0].files);      
+  //   }
+  // });
+
+  $uploadJoinFile.on("change",function(e) {
     if ($(this)[0].files.length) {
-      readFiles($(this)[0].files);      
+      readJoinFile($(this)[0].files[0]);      
     }
-  });
+  })
 
   //Handlers for the upload target
   upload.on("dragenter",noop);
@@ -698,6 +701,13 @@ function setListeners() {
     recolor();
   });
 
+  $("button#join-attribute-submit").click(function(){
+    var leftKey  = $('#join-attribute-left').val(),
+        rightKey = $('#join-attribute-right').val();
+    console.log(leftKey, rightKey)
+    joinNewData(leftKey, rightKey);
+  })
+
   switchLinks.on("click",function() {
     if (!upload.classed("loading") && !fileStatus.classed("loading")) {
       
@@ -793,18 +803,28 @@ function readFiles(files) {
   }
 }
 
+function readJoinFile(file) {
+
+  var reader = new FileReader(),
+      parser = discernParser(file.name);
+
+  reader.onload = function (e) {
+    joinDataFile = parser(e.target.result)
+    populateJoinKeyDropdown()
+    return true
+  };
+
+  reader.readAsText(file);
+}
+
 //Read in a user-inputted file
 function singleFile(file) {
-
   var newFile = {name: file.name, size: file.size, data: {topo: null, geo: null}, type: null};
-
   var reader = new FileReader();
   reader.onload = function (e) {
-
     //If it's not JSON, catch the error and try it as a shapefile instead  
     try {
-
-      var d = JSON.parse(e.target.result);              
+      var d = JSON.parse(e.target.result); 
       newFile.type = jsonType(d);
 
       if (newFile.type == "topojson") {

@@ -135,3 +135,20 @@ function extend(obj) {
   });
   return obj;
 };
+
+function discernFormat(file_name){
+  var name_arr = file_name.split('\.')
+  format_name = name_arr[name_arr.length - 1];
+  return format_name
+}
+
+function discernParser(file_name){
+  var format = discernFormat(file_name);
+  var parserMap = {
+    json: JSON.parse,
+    csv: d3.csv.parse,
+    tsv: d3.tsv.parse,
+    psv: d3.dsv('|').parse
+  }
+  return parserMap[format]
+}

@@ -294,6 +294,23 @@
           <p>This table contains attributes about your map that were stored in the file you uploaded.  Hover over a row in the table to highlight it on the map.</p>
           <p>You can click "Remove" to remove a feature (if you remove something by mistake, just click "Restore" to add it back), and use the column headers to sort the table.</p>
           <p>To edit data for a feature, just click on the cell you want to edit.</p>
+          <div class="panel-group">
+            <div class="panel-header">Join data</div>
+            <span class="form-item">
+              <input type="file" id="upload-join-file" />
+            </span>
+            <span class="form-item">
+              <label for="join-attribute-left"  class="join-attribute-item">Map key</label>
+              <select id="join-attribute-left"  class="attribute-list join-attribute-item" disabled></select>
+            </span>
+            <span class="form-item">
+              <label for="join-attribute-right" class="join-attribute-item">New data key</label>
+              <select id="join-attribute-right" class="attribute-list-right join-attribute-item" disabled></select>
+            </span>
+            <span class="form-item">
+              <button id="join-attribute-submit" class="join-attribute-item">Join data</button>
+            </span>
+          </div>
         </div>
         <div id="attributes-outer" style="margin-left: auto; margin-right: auto;">
           <div id="no-attributes">
