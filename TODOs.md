@@ -1,5 +1,5 @@
 * Add reports on data join
-* Hover vs. active state color
-* Table view
-* Scale options
 * Legends
+* Hover vs. active state color
+* Scale options
+* Table view
