@@ -44,6 +44,7 @@ var mapOptions = {
   stroke: "white",
   fill: "steelblue",
   highlight: "tomato",  
+  hoverLightness: .75,
   colorType: "simple",
   choropleth: {buckets: 3, type: "numeric", scaleName: "YlGn", scale: d3.scale.quantize(), reverse: false, attribute: null, map: {}, default: "#999", attributeProblem: false},
   zoomMode: "free",
@@ -317,7 +318,7 @@ function insertPathsForHighlighting(){
           var p = d3.select(this).filter(".filled");
           if (mapOptions.colorType == "simple") p.attr("fill",mapOptions.highlight);
           if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#e6e6e6");
-
+          if (!p.classed("clicked")) p.attr("opacity", mapOptions.hoverLightness)
           if (mapOptions.tooltip) {            
             var t = (typeof d.properties[mapOptions.tooltip] == "string" || d.properties[mapOptions.tooltip] == "number") ? d.properties[mapOptions.tooltip] : JSON.stringify(d.properties[mapOptions.tooltip]);
             tooltip.text(t).style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px").attr("class","");
@@ -325,6 +326,7 @@ function insertPathsForHighlighting(){
         })
         .on("mouseout",function(d,i) {
           var p = d3.select(this).filter(".filled");
+          p.attr("opacity",1)
           if (!p.empty() && !p.classed("clicked") && mapOptions.colorType == "simple") p.attr("fill",mapOptions.fill);
           if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#fff");
           tooltip.text("").attr("class","hidden");
@@ -1347,7 +1349,7 @@ function clicked(d) {
       .classed("clicked", centered && function(d) { return d === centered; })
       .attr("stroke-width", mapOptions.strokeWidth / k + "px");
 
-  if (mapOptions.colorType == "simple") filledPaths.attr("fill", function(d) { return (centered && d === centered) ? mapOptions.highlight : mapOptions.fill; });
+  if (mapOptions.colorType == "simple") filledPaths.attr("opacity",1).attr("fill", function(d) { return (centered && d === centered) ? mapOptions.highlight : mapOptions.fill; });
 
   features
       .transition()

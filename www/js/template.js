@@ -24,6 +24,11 @@ function generateCode(file,options) {
         codeLines = codeLines.concat([
             'path:hover, path.highlighted {',
             '  fill: '+options.highlight+';',
+            '  opacity: '+options.hoverLightness+';',
+            '}',
+            '',
+            'path.highlighted {',
+            '  opacity: 1;',
             '}',
             ''
         ]);
