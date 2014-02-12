@@ -380,9 +380,6 @@ div#tooltip {
   text-align: center;
   font-size: 16px;
 }
-path:not(.clicked):hover {
-  /*opacity: .75;*/
-}
 
 /* ATTRIBUTE TABLE STYLES */
 table#attributes, table#join-preview {
