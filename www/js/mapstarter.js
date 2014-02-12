@@ -17,6 +17,7 @@ var body,
   fileSize,
   switchLinks,
   alerts,  
+  joinKeys = {left: null, right: null},
   attributesTable, attributesColumns, attributesRows, noAttributes,
   attributesSortColumn, attributesSortDir = -1;
 
@@ -111,6 +112,9 @@ $(document).ready(function() {
   attributesTable = body.select("table#attributes");
   attributesHeader = attributesTable.select("thead");
   attributesBody = attributesTable.select("tbody");
+  joinPreviewTable = body.select("table#join-preview");
+  joinPreviewHeader = joinPreviewTable.select("thead");
+  joinPreviewBody = joinPreviewTable.select("tbody");
   tooltip = body.select("div#tooltip");
   code = body.select("code#download-code");
 
@@ -124,255 +128,295 @@ $(document).ready(function() {
 
 });
 
-function joinNewData(leftKey, rightKey) {
-      currentFile.data.geo.features = joinGeoJson(currentFile.data.geo.features, leftKey, joinDataFile, rightKey)
-      setAttributeTable()
-      insertPathsForHighlighting()
-      scaleMap()
-      recolor()
+function joinNewData() {
+  var dataJoinResult = joinGeoJson(currentFile.data.geo.features, joinKeys.left, joinDataFile, joinKeys.right);
+  currentFile.data.geo.features = dataJoinResult.data
+  setAttributeTable()
+  insertPathsForHighlighting()
+  scaleMap()
+  recolor()
 }
 
 function setAttributeTable(){
-      //Get distinct properties for the attribute table, try to put ID and Name columns first, otherwise leave it alone
-      var set = d3.set();
+  //Get distinct properties for the attribute table, try to put ID and Name columns first, otherwise leave it alone
+  var set = d3.set();
 
-      if (currentFile.data.topo) {
-        var o = getObjectName(currentFile.data.topo);
+  if (currentFile.data.topo) {
+    var o = getObjectName(currentFile.data.topo);
 
-        currentFile.data.topo.objects[o].geometries.forEach(function(d,i) {
-          if (!d.properties) currentFile.data.topo.objects[o].geometries[i].properties = {};          
-        });
+    currentFile.data.topo.objects[o].geometries.forEach(function(d,i) {
+      if (!d.properties) currentFile.data.topo.objects[o].geometries[i].properties = {};          
+    });
 
-      }
+  }
 
-      currentFile.data.geo.features.forEach(function(d,i) {
-        if (!d.properties) currentFile.data.geo.features[i].properties = {};
+  currentFile.data.geo.features.forEach(function(d,i) {
+    if (!d.properties) currentFile.data.geo.features[i].properties = {};
 
-        for (prop in d.properties) {
-          set.add(prop);
-        }
-      });
+    for (prop in d.properties) {
+      set.add(prop);
+    }
+  });
 
-      //moving this lower
-      //setFileType(currentFile.type);
+  //moving this lower
+  //setFileType(currentFile.type);
 
 
-      attributesColumns = set.values().sort(function(a,b) {
-        if (a.toLowerCase() == "id") return -1;
-        if (b.toLowerCase() == "name") return -1;        
-        return 0;
-      });
+  attributesColumns = set.values().sort(function(a,b) {
+    if (a.toLowerCase() == "id") return -1;
+    if (b.toLowerCase() == "name") return -1;        
+    return 0;
+  });
 
-      attributesTable.classed("hidden",!attributesColumns.length);
-      noAttributes.classed("hidden",attributesColumns.length);
+  attributesTable.classed("hidden",!attributesColumns.length);
+  noAttributes.classed("hidden",attributesColumns.length);
 
-      attributesBody.selectAll("tr").remove();
-      attributesRows = attributesBody.selectAll("tr").data(currentFile.data.geo.features).enter().append("tr")
-        .attr("id",function(d,i) { return "tr"+i;} )
-        .on("mouseover",function(d,i) {
-          if (mapOptions.colorType == "simple") d3.select("#path"+i+".filled").attr("fill",mapOptions.highlight);
-        })
-        .on("mouseout",function(d,i) {                
-          if (mapOptions.colorType == "simple") d3.select("#path"+i+".filled:not(.clicked)").attr("fill",mapOptions.fill);
-        });
+  attributesBody.selectAll("tr").remove();
+  attributesRows = attributesBody.selectAll("tr").data(currentFile.data.geo.features).enter().append("tr")
+    .attr("id",function(d,i) { return "tr"+i;} )
+    .on("mouseover",function(d,i) {
+      if (mapOptions.colorType == "simple") d3.select("#path"+i+".filled").attr("fill",mapOptions.highlight);
+    })
+    .on("mouseout",function(d,i) {                
+      if (mapOptions.colorType == "simple") d3.select("#path"+i+".filled:not(.clicked)").attr("fill",mapOptions.fill);
+    });
 
-      $("select#tooltip-attribute option,select#color-choropleth-attribute option").remove();
+  $("select#tooltip-attribute option,select#color-choropleth-attribute option").remove();
 
-      //Stringify any non-primitive data values
-      attributesColumns.forEach(function(a,i) {
-        if (!i) mapOptions.choropleth.attribute = a;
+  //Stringify any non-primitive data values
+  attributesColumns.forEach(function(a,i) {
+    if (!i) mapOptions.choropleth.attribute = a;
 
-        attributesRows.append("td")
-          .text(function(d) {
-            if (a in d.properties) {              
-              if (typeof d.properties[a] === "number" || typeof d.properties[a] === "string") return ""+d.properties[a];
-              return JSON.stringify(d.properties[a], null, " ");
-            } 
-            return "";
-          }).on("click",function(d,rowIndex) {                        
-            //Don't allow editing of deep objects/arrays            
-            if (a in d.properties && typeof d.properties[a] !== "number" && typeof d.properties[a] !== "string") return true;
+    attributesRows.append("td")
+      .text(function(d) {
+        if (a in d.properties) {              
+          if (typeof d.properties[a] === "number" || typeof d.properties[a] === "string") return ""+d.properties[a];
+          return JSON.stringify(d.properties[a], null, " ");
+        } 
+        return "";
+      }).on("click",function(d,rowIndex) {                        
+        //Don't allow editing of deep objects/arrays            
+        if (a in d.properties && typeof d.properties[a] !== "number" && typeof d.properties[a] !== "string") return true;
 
-            var cell = d3.select(this);
-            var t = cell.text();
+        var cell = d3.select(this);
+        var t = cell.text();
 
-            var w = cell.style("width");
-            var h = cell.style("height");            
+        var w = cell.style("width");
+        var h = cell.style("height");            
 
-            cell.html("").append("input")
-              .style("width",w)
-              .style("height",h)
-              .attr("class","text")
-              .attr("value",t)
-              .datum(t)
-              .on("click",function() {
-                d3.event.stopPropagation();
-              })
-              .on("keypress",function(){                                
-                if (d3.event.keyCode == 13) d3.select(this).node().blur();
-              })
-              .on("blur",function(original) {                                
-                var input = d3.select(this);
-                if (input.empty()) return true;
-
-                var val = this.value;                
-                input.remove();
-
-                cell.text(val);
-
-                currentFile.data.geo.features[rowIndex].properties[a] = val;
-                if (currentFile.data.topo) {
-                  var o = getObjectName(currentFile.data.topo);
-                  currentFile.data.geo.objects[o].geometries[rowIndex].properties[a] = val;
-                }
-
-                if (mapOptions.colorType == "choropleth") recolor();
-
-                updateDownloads("data");                
-              })
-              .node().focus();            
-          });
-
-          $("select.attribute-list").append($("<option />").val(a).text(a));
-      });
-
-      populateScales();
-
-      //Populate the attribute table
-      attributesHeader.selectAll("th").remove();
-      attributesHeader.selectAll("th").data(attributesColumns).enter().append("th")
-        .attr("class","sortable")
-        .html(function(d){return '<span class="glyphicon glyphicon-sort"></span>&nbsp;'+d;})
-        .on("click",function(d,i) {          
-          attributesHeader.select("th.sorted").classed("sorted",false).select("span").attr("class","glyphicon glyphicon-sort");
-          d3.select(this).classed("sorted",true).select("span").attr("class","glyphicon glyphicon-sort-by-attributes"+(attributesSortDir > 0 ? "-alt" : ""));
-          sortAttributeRows(attributesColumns[i],-attributesSortDir);
-        });
-      
-      //For deletion
-      attributesHeader.append("th").text("");
-
-      //For deletion
-      var deletes = attributesRows.append("td")
-          .attr("class","attribute-delete")
+        cell.html("").append("input")
+          .style("width",w)
+          .style("height",h)
+          .attr("class","text")
+          .attr("value",t)
+          .datum(t)
           .on("click",function() {
-            d3.event.stopPropagation();            
-          });
-
-      deletes.append("a")    
-          .attr("href","#")
-          .on("click",function(d,i) {            
             d3.event.stopPropagation();
-            d3.event.preventDefault();
+          })
+          .on("keypress",function(){                                
+            if (d3.event.keyCode == 13) d3.select(this).node().blur();
+          })
+          .on("blur",function(original) {                                
+            var input = d3.select(this);
+            if (input.empty()) return true;
 
-            var isDeleted = d3.select("tr#tr"+i).classed("deleted");            
-            if (isDeleted) {
-              d3.select(this).html('<span>&times;</span>&nbsp;Remove').attr("title","Remove this feature");              
-              currentFile.skip = currentFile.skip.filter(function(s) { return s != i;});
-            } else {              
-              d3.select(this).html('<span>+</span>&nbsp;Restore').attr("title","Restore this feature");              
-              if (currentFile.skip.indexOf(i) == -1) currentFile.skip.push(i);
+            var val = this.value;                
+            input.remove();
+
+            cell.text(val);
+
+            currentFile.data.geo.features[rowIndex].properties[a] = val;
+            if (currentFile.data.topo) {
+              var o = getObjectName(currentFile.data.topo);
+              currentFile.data.geo.objects[o].geometries[rowIndex].properties[a] = val;
             }
-            
-            attributesBody.select("tr#tr"+i).classed("deleted",!isDeleted);
-            map.select("path#path"+i).style("display",isDeleted ? "block" : "none");  
 
-            updateDownloads("data");
-            scaleMap();
             if (mapOptions.colorType == "choropleth") recolor();
 
-            return false;
+            updateDownloads("data");                
           })
-          .attr("title","Delete this feature")
-          .html('<span>&times;</span>&nbsp;Remove');
+          .node().focus();            
+      });
 
-      paths.remove();
+      $("select.attribute-list").append($("<option />").val(a).text(a));
+  });
+
+  populateScales();
+
+  //Populate the attribute table
+  attributesHeader.selectAll("th").remove();
+  attributesHeader.selectAll("th").data(attributesColumns).enter().append("th")
+    .attr("class","sortable")
+    .html(function(d){return '<span class="glyphicon glyphicon-sort"></span>&nbsp;'+d;})
+    .on("click",function(d,i) {          
+      attributesHeader.select("th.sorted").classed("sorted",false).select("span").attr("class","glyphicon glyphicon-sort");
+      d3.select(this).classed("sorted",true).select("span").attr("class","glyphicon glyphicon-sort-by-attributes"+(attributesSortDir > 0 ? "-alt" : ""));
+      sortAttributeRows(attributesColumns[i],-attributesSortDir);
+    });
+  
+  //For deletion
+  attributesHeader.append("th").text("");
+
+  //For deletion
+  var deletes = attributesRows.append("td")
+      .attr("class","attribute-delete")
+      .on("click",function() {
+        d3.event.stopPropagation();            
+      });
+
+  deletes.append("a")    
+      .attr("href","#")
+      .on("click",function(d,i) {            
+        d3.event.stopPropagation();
+        d3.event.preventDefault();
+
+        var isDeleted = d3.select("tr#tr"+i).classed("deleted");            
+        if (isDeleted) {
+          d3.select(this).html('<span>&times;</span>&nbsp;Remove').attr("title","Remove this feature");              
+          currentFile.skip = currentFile.skip.filter(function(s) { return s != i;});
+        } else {              
+          d3.select(this).html('<span>+</span>&nbsp;Restore').attr("title","Restore this feature");              
+          if (currentFile.skip.indexOf(i) == -1) currentFile.skip.push(i);
+        }
+        
+        attributesBody.select("tr#tr"+i).classed("deleted",!isDeleted);
+        map.select("path#path"+i).style("display",isDeleted ? "block" : "none");  
+
+        updateDownloads("data");
+        scaleMap();
+        if (mapOptions.colorType == "choropleth") recolor();
+
+        return false;
+      })
+      .attr("title","Delete this feature")
+      .html('<span>&times;</span>&nbsp;Remove');
+
+  paths.remove();
 }
 
 function insertPathsForHighlighting(){
-      paths = features.selectAll("path").data(currentFile.data.geo.features).enter().append("path")
-            .attr("stroke-width",mapOptions.strokeWidth)
-            .attr("stroke",mapOptions.stroke)        
-            .attr("id",function(d,i) {
-              return "path"+i;
-            })
-            .attr("fill",function(d) {
-              if (d.geometry.type == "LineString") return "none";
-              return null;
-            })
-            .attr("class",function(d) {
-              if (d.geometry.type == "LineString") return null;
-              return "filled";
-            })
-            .on("click",clicked)
-            .on("mousemove",function(d,i) {
-              tooltip.style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px");
-            })
-            .on("mouseover",function(d,i) {            
-              var p = d3.select(this).filter(".filled");
-              if (mapOptions.colorType == "simple") p.attr("fill",mapOptions.highlight);
-              if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#e6e6e6");
+  paths = features.selectAll("path").data(currentFile.data.geo.features).enter().append("path")
+        .attr("stroke-width",mapOptions.strokeWidth)
+        .attr("stroke",mapOptions.stroke)        
+        .attr("id",function(d,i) {
+          return "path"+i;
+        })
+        .attr("fill",function(d) {
+          if (d.geometry.type == "LineString") return "none";
+          return null;
+        })
+        .attr("class",function(d) {
+          if (d.geometry.type == "LineString") return null;
+          return "filled";
+        })
+        .on("click",clicked)
+        .on("mousemove",function(d,i) {
+          tooltip.style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px");
+        })
+        .on("mouseover",function(d,i) {            
+          var p = d3.select(this).filter(".filled");
+          if (mapOptions.colorType == "simple") p.attr("fill",mapOptions.highlight);
+          if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#e6e6e6");
 
-              if (mapOptions.tooltip) {            
-                var t = (typeof d.properties[mapOptions.tooltip] == "string" || d.properties[mapOptions.tooltip] == "number") ? d.properties[mapOptions.tooltip] : JSON.stringify(d.properties[mapOptions.tooltip]);
-                tooltip.text(t).style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px").attr("class","");
-              }
-            })
-            .on("mouseout",function(d,i) {
-              var p = d3.select(this).filter(".filled");
-              if (!p.empty() && !p.classed("clicked") && mapOptions.colorType == "simple") p.attr("fill",mapOptions.fill);
-              if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#fff");
-              tooltip.text("").attr("class","hidden");
-            });
-          
-          filledPaths = paths.filter(function(d) { return d.geometry.type != "LineString"; });
-
-          //If it's LineStrings only and stroke color is white, change to steelblue      
-          if (filledPaths.empty()) {
-            var rgb = d3.rgb(mapOptions.stroke);        
-            if (rgb.r == 255 && rgb.g == 255 && rgb.b == 255) {
-              mapOptions.stroke = "steelblue";
-              $("input#color-stroke").val("#4682B4");
-              paths.attr("stroke",mapOptions.stroke);              
-            }
-
+          if (mapOptions.tooltip) {            
+            var t = (typeof d.properties[mapOptions.tooltip] == "string" || d.properties[mapOptions.tooltip] == "number") ? d.properties[mapOptions.tooltip] : JSON.stringify(d.properties[mapOptions.tooltip]);
+            tooltip.text(t).style("top",(d3.event.pageY-35)+"px").style("left",(d3.event.pageX+5)+"px").attr("class","");
           }
+        })
+        .on("mouseout",function(d,i) {
+          var p = d3.select(this).filter(".filled");
+          if (!p.empty() && !p.classed("clicked") && mapOptions.colorType == "simple") p.attr("fill",mapOptions.fill);
+          if (currentSection == "data") d3.select("tr#tr"+i).style("background-color","#fff");
+          tooltip.text("").attr("class","hidden");
+        });
+      
+      filledPaths = paths.filter(function(d) { return d.geometry.type != "LineString"; });
+
+      //If it's LineStrings only and stroke color is white, change to steelblue      
+      if (filledPaths.empty()) {
+        var rgb = d3.rgb(mapOptions.stroke);        
+        if (rgb.r == 255 && rgb.g == 255 && rgb.b == 255) {
+          mapOptions.stroke = "steelblue";
+          $("input#color-stroke").val("#4682B4");
+          paths.attr("stroke",mapOptions.stroke);              
+        }
+
+      }
 }
 
 //Process newly loaded data
 function loaded(newFile) {       
 
-      body.classed("blanked",false);      
+  body.classed("blanked",false);      
 
-      currentFile = newFile;      
-      if (!currentFile.skip) currentFile.skip = [];
+  currentFile = newFile;      
+  if (!currentFile.skip) currentFile.skip = [];
 
-      switchLinks.datum(currentFile.type == "geojson" ? "topojson" : "geojson");
+  switchLinks.datum(currentFile.type == "geojson" ? "topojson" : "geojson");
 
-      //Choose a projection based on the data
-      chooseDefaultProjection(currentFile.data.geo);      
+  //Choose a projection based on the data
+  chooseDefaultProjection(currentFile.data.geo);      
 
-      setAttributeTable()
+  setAttributeTable()
 
-      //Insert paths with hover events for highlighting
-      insertPathsForHighlighting()
+  //Insert paths with hover events for highlighting
+  insertPathsForHighlighting()
 
-      resetOptions();
-      
-      //Draw the map
-      scaleMap();      
+  resetOptions();
+  
+  //Draw the map
+  scaleMap();      
 
-      //Crop unnecessary whitespace from the non-limiting dimension on initial load
-      autoCrop();
+  //Crop unnecessary whitespace from the non-limiting dimension on initial load
+  autoCrop();
 
-      recolor();
+  recolor();
 
-      setFileType(currentFile.type);
+  setFileType(currentFile.type);
 
-      uploadComplete();
+  uploadComplete();
 
-      //Send them to the size/projection page first
-      showSection("size",true);
+  //Send them to the size/projection page first
+  showSection("size",true);
+
+}
+
+function printJoinReport(){
+  var $joinReport = $('#join-report'),
+      $joinFullResults = $('#join-full-report'),
+      report_text =  more_flag  = full_report = '';
+
+  var report = joinGeoJson(currentFile.data.geo.features, joinKeys.left, joinDataFile, joinKeys.right).report;
+  if (report.a_and_b.length == 0){
+    report_text = 'No matches. Try choosing different columns to match on.';
+  } else {
+    if (report.a_not_in_b.length != 0 || b_not_in_a.length != 0){
+      report_text = report.a_and_b.length + ' rows matched. '
+      full_report = '<strong>Matching rows</strong>: ' + report.a_and_b.join(', ') + '<br/>';
+
+      if (report.a_not_in_b.length == 0){
+        report_text += 'All ' + report.a.length + ' rows in the existing data find a match. '
+      } else {
+        report_text += report.a_not_in_b.length + ' rows in the existing data don\'t match. '
+        full_report += '<strong>Unmatching rows in existing data</strong>: ' + report.a_not_in_b.join(', ') + '<br/>'
+      }
+
+      if (report.b_not_in_a.length == 0){
+        report_text += 'All ' + report.b.length + ' rows in the new data. '
+      } else {
+        report_text += report.b_not_in_a.length + ' rows in the new data don\'t match. '
+        full_report += '<strong>Unmatching rows in new data</strong>: ' + report.b_not_in_a.join(', ') + '<br/>'
+      }
+
+      more_flag = ' <span id="show-full-join-report">Show full report.</span>'
+    } else if (report.a_not_in_b.length == 0 && b_not_in_a.length == 0){
+      report_text = '100%, one-to-one match of ' + report.a.length + ' rows! '
+    } 
+
+  }
+
+
+  $joinReport.html('<div id="join-full-report"></div>').prepend(report_text + more_flag).find('#join-full-report').html(full_report)
 
 }
 
@@ -383,7 +427,44 @@ function populateJoinKeyDropdown(){
   rightKeys.forEach(function(a, i){
     $("select.attribute-list-right").append($("<option />").val(a).text(a));
   })
+  setJoinKeyVal($('#join-attribute-left'))
+  setJoinKeyVal($('#join-attribute-right'))
 }
+
+function populateJoinPreviewTable(){
+  // Grab the keys from the first row
+  var joinAttributeColumns = Object.keys(joinDataFile[0])
+  joinPreviewHeader.selectAll("th").remove();
+  joinPreviewHeader.selectAll("th").data(joinAttributeColumns).enter().append("th")
+    .html(function(d){return '<span></span>&nbsp;'+d;})
+    // .on("click",function(d,i) {          
+    //   joinPreviewHeader.select("th.sorted").classed("sorted",false).select("span").attr("class","glyphicon glyphicon-sort");
+    //   d3.select(this).classed("sorted",true).select("span").attr("class","glyphicon glyphicon-sort-by-attributes"+(attributesSortDir > 0 ? "-alt" : ""));
+    //   sortAttributeRows(attributesColumns[i],-attributesSortDir);
+    // });
+
+  // Only show the first five objects of the preview data
+  var previewData = joinDataFile;
+  if (previewData.length > 5){
+    previewData = previewData.slice(0,5)
+  }
+  joinPreviewBody.selectAll("tr").remove();
+  var joinPreviewRows = joinPreviewBody.selectAll("tr").data(previewData).enter().append("tr")
+
+  joinAttributeColumns.forEach(function(a,i){
+    joinPreviewRows.append("td")
+      .text(function(d){
+        return d[a]
+      })
+  })
+
+}
+
+function setJoinKeyVal($this){
+  var key_val = $this.data("join-key");
+  joinKeys[key_val] = $this.val()
+}
+
 
 //Throw an error message
 function msg(key) {
@@ -701,11 +782,23 @@ function setListeners() {
     recolor();
   });
 
+  $("select.join-attribute-item").change(function(){
+    setJoinKeyVal($(this))
+    printJoinReport()
+  });
+
   $("button#join-attribute-submit").click(function(){
-    var leftKey  = $('#join-attribute-left').val(),
-        rightKey = $('#join-attribute-right').val();
-    joinNewData(leftKey, rightKey);
-  })
+    joinNewData();
+  });
+
+  $("#join-report").on('click', '#show-full-join-report', function(){
+    $('#join-full-report').toggle();
+    if ($('#join-full-report').is(":visible")){
+      $(this).html('Hide full report.')
+    }else{
+      $(this).html('Show full report.')
+    }
+  });
 
   switchLinks.on("click",function() {
     if (!upload.classed("loading") && !fileStatus.classed("loading")) {
@@ -810,6 +903,8 @@ function readJoinFile(file) {
   reader.onload = function (e) {
     joinDataFile = parser(e.target.result)
     populateJoinKeyDropdown()
+    populateJoinPreviewTable()
+    printJoinReport()
     return true
   };
 

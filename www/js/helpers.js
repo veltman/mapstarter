@@ -124,25 +124,15 @@ function parseNumber(val) {
   return null;
 }
 
-// Underscore's _.extend fn for data joining. We don't need all of underscore, though.
-function extend(obj) {
-  Array.prototype.slice.call(arguments, 1).forEach( function(source) {
-    if (source) {
-      for (var prop in source) {
-        obj[prop] = source[prop];
-      }
-    }
-  });
-  return obj;
-};
-
-function discernFormat(file_name){
+// Given a file name, get its extension
+function discernFormat(file_name) {
   var name_arr = file_name.split('\.')
   format_name = name_arr[name_arr.length - 1];
   return format_name
 }
 
-function discernParser(file_name){
+// Given a file name, return teh appropriate date parser
+function discernParser(file_name) {
   var format = discernFormat(file_name);
   var parserMap = {
     json: JSON.parse,
