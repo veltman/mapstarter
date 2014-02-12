@@ -1,4 +1,5 @@
 * Legends
+* delete columns
 * Reset zoom button
 * Scale options
 * Table view
