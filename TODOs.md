@@ -1,4 +1,4 @@
-* Legends
+* Bake legend
 * delete columns
 * Reset zoom button
 * Scale options
