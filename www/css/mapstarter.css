@@ -357,6 +357,7 @@ pre code {
 /* MAP BOX STYLES */
 
 #map-box {
+  position: relative;
   margin-left: auto;
   margin-right: auto;
   margin-top: 12px;
@@ -546,3 +547,41 @@ body.blanked div.mapstarter-section:not(.unblankable) {
 #upload-target.loading div.loading {
   display: block;
 }
+
+/* LEGEND */
+
+#legend{
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 150px;
+}
+
+#legend:hover{
+  cursor: move;
+}
+
+#legend-swatches{
+  width: 100%;
+  border-radius: 3px;
+  border: 1px solid #CCC;
+  overflow: hidden;
+}
+
+.legend-swatch{
+  height: 12px;
+  float: left;
+}
+
+#legend-text-0{
+  float: left;
+}
+
+#legend-text-1{
+  float: right;
+}
+
+#color-choropleth-scales{
+  overflow: auto;
+}
+

@@ -17,6 +17,8 @@ var body,
   fileSize,
   switchLinks,
   alerts,  
+  legend,
+  dataExtent,
   joinKeys = {left: null, right: null},
   attributesTable, attributesColumns, attributesRows, noAttributes,
   attributesSortColumn, attributesSortDir = -1;
@@ -46,7 +48,7 @@ var mapOptions = {
   highlight: "tomato",  
   hoverLightness: .75,
   colorType: "simple",
-  choropleth: {buckets: 3, type: "numeric", scaleName: "YlGn", scale: d3.scale.quantize(), reverse: false, attribute: null, map: {}, default: "#999", attributeProblem: false},
+  choropleth: {buckets: 3, type: "numeric", scaleName: "YlGn", scale: d3.scale.quantize(), reverse: false, attribute: null, map: {}, default: "#999", attributeProblem: false, legend: true},
   zoomMode: "free",
   responsive: false,
   tooltip: false
@@ -118,6 +120,7 @@ $(document).ready(function() {
   joinPreviewBody = joinPreviewTable.select("tbody");
   tooltip = body.select("div#tooltip");
   code = body.select("code#download-code");
+  legend = body.select('div#legend');
 
   $uploadFile     = $("#upload-file");
   $uploadJoinFile = $('#upload-join-file');
@@ -583,7 +586,8 @@ function recolor(from) {
     filledPaths.attr("fill",mapOptions.choropleth.default);
     mapOptions.choropleth.scale = d3.scale.quantize().domain([0,1]).range(colors);
   } else {              
-    mapOptions.choropleth.scale = d3.scale.quantize().domain(d3.extent(mapped)).range(colors);
+    dataExtent = d3.extent(mapped)
+    mapOptions.choropleth.scale = d3.scale.quantize().domain(dataExtent).range(colors);
 
     filledPaths.attr("fill",function(d){
       if (!d.properties || !mapOptions.choropleth.attribute) {
@@ -600,7 +604,67 @@ function recolor(from) {
     });
 
   }
+
+  if (mapOptions.choropleth.legend){
+    drawLegend()
+  }
   
+}
+
+function initLegendDrag(){
+  return d3.behavior.drag()
+      .origin(Object)
+      .on("drag", dragMove);
+}
+
+function drawLegend(){
+  if (dataExtent && dataExtent.length != 0){
+    var Dlegend = d3.select("div#legend")
+    if (Dlegend.classed("hidden",true)) Dlegend.classed("hidden",false)
+    
+    Dlegend.call(initLegendDrag())
+
+    var colors = colorbrewer[mapOptions.choropleth.type][mapOptions.choropleth.scaleName][mapOptions.choropleth.buckets].slice(0);
+
+    if (mapOptions.choropleth.reverse) colors.reverse();
+
+    // Add the min/max text
+    d3.select("div#legend-texts").selectAll("div.legend-text").remove()
+    d3.select("div#legend-texts").selectAll("div.legend-text")
+      .data(dataExtent)
+      .enter().append("div")
+      .attr("id",function(d,i) { return "legend-text-"+i })
+      .classed("legend-text",true)
+      .html(function(d){ return d });
+
+    // Add the colors
+    d3.select("div#legend-swatches").selectAll("div").remove()
+    d3.select("div#legend-swatches").selectAll("div")
+      .data(colors)
+      .enter().append("div")
+      .style("background-color", function(d) { return d})
+      .classed("legend-swatch",true)
+      .style("width", function(d) { return (100/mapOptions.choropleth.buckets) + "%" });
+  }
+ 
+}
+
+function dragMove(d) {
+  var newTop  = parseInt($(this).css('top'))  + d3.event.dy,
+      newLeft = parseInt($(this).css('left')) + d3.event.dx,
+      canvasHeight = $("#map-box").height(),
+      canvasWidth  = $("#map-box").width(),
+      legendHeight = $("#legend").height(),
+      legendWidth  = $("#legend").width();
+
+  // Don't allow the legend to be draggable outside the map-box
+  if (newTop  < 0) { newTop  = 0 }
+  if (newLeft < 0) { newLeft = 0 }
+  if (newTop  + legendHeight > canvasHeight) { newTop  = canvasHeight - legendHeight }
+  if (newLeft + legendWidth  > canvasWidth)  { newLeft = canvasWidth  - legendWidth }
+  d3.select(this)
+      .style("top",  newTop + "px")
+      .style("left",  newLeft + "px");
 }
 
 //Reset certain options when a new file is added
