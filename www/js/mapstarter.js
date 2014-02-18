@@ -48,7 +48,7 @@ var mapOptions = {
   highlight: "tomato",  
   hoverLightness: .75,
   colorType: "simple",
-  choropleth: {buckets: 3, type: "numeric", scaleName: "YlGn", scale: d3.scale.quantize(), reverse: false, attribute: null, map: {}, default: "#999", attributeProblem: false, legend: true},
+  choropleth: {buckets: 3, type: "numeric", scaleName: "YlGn", scale: d3.scale.quantize(), reverse: false, attribute: null, map: {}, default: "#999", attributeProblem: false, legend: true, legendMarkup: null},
   zoomMode: "free",
   responsive: false,
   tooltip: false
@@ -600,9 +600,7 @@ function recolor(from) {
 
   }
 
-  if (mapOptions.choropleth.legend){
-    drawLegend()
-  }
+  drawLegend()
   
 }
 
@@ -615,10 +613,13 @@ function initLegendDrag(){
 function drawLegend(){
   var Dlegend = d3.select("div#legend"),
       colors;
-  if (dataExtent && dataExtent.length != 0){
-    if (Dlegend.classed("hidden",true)) Dlegend.classed("hidden",false)
+  if (dataExtent && dataExtent.length != 0 && mapOptions.choropleth.legend){
+    Dlegend.style("display","block")
     
-    Dlegend.call(initLegendDrag())
+    Dlegend
+      .style("top","5px")
+      .style("left","5px")
+      .call(initLegendDrag())
 
     colors = colorbrewer[mapOptions.choropleth.type][mapOptions.choropleth.scaleName][mapOptions.choropleth.buckets].slice(0);
 
@@ -641,8 +642,11 @@ function drawLegend(){
       .style("background-color", function(d) { return d})
       .classed("legend-swatch",true)
       .style("width", function(d) { return (100/mapOptions.choropleth.buckets) + "%" });
+
+    mapOptions.choropleth.legendMarkup = Dlegend[0][0].outerHTML
   }else{
-    Dlegend.classed("hidden",true)
+    mapOptions.choropleth.legendMarkup = null
+    Dlegend.style("display","none")
   }
  
 }
@@ -663,6 +667,8 @@ function dragMove(d) {
   d3.select(this)
       .style("top",  newTop + "px")
       .style("left",  newLeft + "px");
+
+  mapOptions.choropleth.legendMarkup = this.outerHTML
 }
 
 //Reset certain options when a new file is added
@@ -844,6 +850,11 @@ function setListeners() {
     populateScales();
     resetMap();
     recolor();
+  });
+
+  $("input#color-choropleth-legend").change(function(){        
+    mapOptions.choropleth.legend = $(this).prop("checked");
+    drawLegend();
   });
 
   $("select.join-attribute-item").change(function(){

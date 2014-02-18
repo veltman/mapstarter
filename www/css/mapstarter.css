@@ -580,8 +580,3 @@ body.blanked div.mapstarter-section:not(.unblankable) {
 #legend-text-1{
   float: right;
 }
-
-#color-choropleth-scales{
-  overflow: auto;
-}
-

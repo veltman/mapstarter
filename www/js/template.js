@@ -57,9 +57,40 @@ function generateCode(file,options) {
         ]);
     }
 
+    if (options.choropleth.legend){
+        codeLines = codeLines.concat([
+            '#legend{',
+              'position: absolute;',
+              'width: 150px;',
+            '}',
+            '',
+            '#legend-swatches{',
+              'width: 100%;',
+              'border-radius: 3px;',
+              'border: 1px solid #CCC;',
+              'overflow: hidden;',
+            '}',
+            '',
+            '.legend-swatch{',
+              'height: 12px;',
+              'float: left;',
+            '}',
+            '',
+            '#legend-text-0{',
+              'float: left;',
+            '}',
+            '',
+            '#legend-text-1{',
+              'float: right;',
+            '}',
+            ''
+        ]);
+    }
+
     codeLines = codeLines.concat([
         '</style>',
-        '<body>',        
+        '<body>',   
+        (mapOptions.choropleth.legendMarkup) ? mapOptions.choropleth.legendMarkup : '',     
         '<script src="http://d3js.org/d3.v3.min.js"></script>',
         function(){ if (file.type == "topojson") return '<script src="http://d3js.org/topojson.v1.min.js"></script>'; return null; },
         '<script>',
@@ -287,7 +318,11 @@ function generateCode(file,options) {
         //Add this later
     }    
 
-    codeLines.push('</script>');    
+    codeLines = codeLines.concat([
+            '</script>',
+            '</body>',
+            '</html>'
+        ]);
 
     var result = codeLines
         .map(function(l) {
