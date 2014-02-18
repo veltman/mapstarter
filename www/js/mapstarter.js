@@ -442,11 +442,6 @@ function populateJoinPreviewTable(){
   joinPreviewHeader.selectAll("th").remove();
   joinPreviewHeader.selectAll("th").data(joinAttributeColumns).enter().append("th")
     .html(function(d){return '<span></span>&nbsp;'+d;})
-    // .on("click",function(d,i) {          
-    //   joinPreviewHeader.select("th.sorted").classed("sorted",false).select("span").attr("class","glyphicon glyphicon-sort");
-    //   d3.select(this).classed("sorted",true).select("span").attr("class","glyphicon glyphicon-sort-by-attributes"+(attributesSortDir > 0 ? "-alt" : ""));
-    //   sortAttributeRows(attributesColumns[i],-attributesSortDir);
-    // });
 
   // Only show the first five objects of the preview data
   var previewData = joinDataFile;
@@ -564,7 +559,7 @@ function populateScales() {
 //attribute selected, set the range to the color set.  Check to make sure there are some numeric values,
 //otherwise throw a warning
 function recolor(from) {    
-
+  dataExtent = null
   mapOptions.choropleth.attributeProblem = false;
 
   if (mapOptions.colorType == "simple") {
@@ -618,13 +613,14 @@ function initLegendDrag(){
 }
 
 function drawLegend(){
+  var Dlegend = d3.select("div#legend"),
+      colors;
   if (dataExtent && dataExtent.length != 0){
-    var Dlegend = d3.select("div#legend")
     if (Dlegend.classed("hidden",true)) Dlegend.classed("hidden",false)
     
     Dlegend.call(initLegendDrag())
 
-    var colors = colorbrewer[mapOptions.choropleth.type][mapOptions.choropleth.scaleName][mapOptions.choropleth.buckets].slice(0);
+    colors = colorbrewer[mapOptions.choropleth.type][mapOptions.choropleth.scaleName][mapOptions.choropleth.buckets].slice(0);
 
     if (mapOptions.choropleth.reverse) colors.reverse();
 
@@ -645,6 +641,8 @@ function drawLegend(){
       .style("background-color", function(d) { return d})
       .classed("legend-swatch",true)
       .style("width", function(d) { return (100/mapOptions.choropleth.buckets) + "%" });
+  }else{
+    Dlegend.classed("hidden",true)
   }
  
 }
