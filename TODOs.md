@@ -3,5 +3,6 @@
 * Scale options
 * More tooltip options
 * Table view
-* Possibly color table rows by join report results
+* buttons for automatic legend positioning
 * prefix css
+* Possibly color table rows by join report results
