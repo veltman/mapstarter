@@ -78,7 +78,6 @@ To do list
 * Pull in data from a Google spreadsheet with Tabletop.js
 * Feature simplification
 * Merge features
-* Add a legend to a choropleth
 * Categorical choropleths
 * Support files with multiple geometry layers
 * Auto-delete weird features (i.e. tiny islands)
