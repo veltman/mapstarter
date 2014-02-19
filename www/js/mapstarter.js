@@ -616,9 +616,8 @@ function drawLegend(){
   if (dataExtent && dataExtent.length != 0 && mapOptions.choropleth.legend){
     Dlegend.style("display","block")
     
+    console.log(Dlegend.style("top"))
     Dlegend
-      .style("top","5px")
-      .style("left","5px")
       .call(initLegendDrag())
 
     colors = colorbrewer[mapOptions.choropleth.type][mapOptions.choropleth.scaleName][mapOptions.choropleth.buckets].slice(0);
