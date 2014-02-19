@@ -87,10 +87,36 @@ function generateCode(file,options) {
         ]);
     }
 
+    if (options.zoomMode == 'feature'){
+        codeLines = codeLines.concat([
+            '#zoom-reset{',
+              'position: absolute;',
+              'top: 5px;',
+              'left: '+(options.width - 80) +'px;',
+              'padding: 5px;',
+              'background-color: rgba(0, 0, 0, .15);',
+              '-webkit-touch-callout: none;',
+              '-webkit-user-select: none;',
+              '-khtml-user-select: none;',
+              '-moz-user-select: -moz-none;',
+              '-ms-user-select: none;',
+              'user-select: none;',
+            '}',
+            '',
+            '#zoom-reset:hover{',
+              'cursor: pointer;',
+              'cursor: hand;',
+              'text-decoration: underline;',
+            '}',
+            ''
+        ])
+    }
+
     codeLines = codeLines.concat([
         '</style>',
         '<body>',   
-        (mapOptions.choropleth.legendMarkup) ? mapOptions.choropleth.legendMarkup : '',     
+        (options.zoomMode == 'feature') ? '<div id="zoom-reset" style="display:none;">Reset zoom</div>' : '',
+        (options.choropleth.legendMarkup) ? options.choropleth.legendMarkup : '',     
         '<script src="http://d3js.org/d3.v3.min.js"></script>',
         function(){ if (file.type == "topojson") return '<script src="http://d3js.org/topojson.v1.min.js"></script>'; return null; },
         '<script>',
@@ -208,9 +234,16 @@ function generateCode(file,options) {
 
             return '    .attr("class", function(d) { return (typeof color('+a+') == "string" ? color('+a+') : ""); })';
         },
-        function() { if (options.tooltip) return '    .on("mouseover",showTooltip)'; return null; },
+        '   .on("mouseover",function(d){',
+        '       var p = d3.select(this);',
+        '       if (!p.classed("clicked")) p.attr("opacity", '+options.hoverLightness+')',
+        '       ' + (options.tooltip) ? '       showTooltip(d)' : '',
+        '   })',
+        '   .on("mouseout",function(d){',
+        '       d3.select(this).attr("opacity",1)',
+        '       ' + (options.tooltip) ? '       hideTooltip(d)' : '',
+        '   })',
         function() { if (options.tooltip) return '    .on("mousemove",moveTooltip)'; return null; },
-        function() { if (options.tooltip) return '    .on("mouseout",hideTooltip)'; return null; },
         '    .on("click",clicked);',
         '',
         '});'
@@ -234,12 +267,14 @@ function generateCode(file,options) {
                 '    x = centroid[0];',
                 '    y = centroid[1];',
                 '    k = .8 / Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height);',
-                '    centered = d',                
+                '    centered = d',
+                '    d3.select("#zoom-reset").style("display","block")',
                 '  } else {',
                 '    x = width / 2;',
                 '    y = height / 2;',
                 '    k = 1;',
                 '    centered = null;',
+                '    d3.select("#zoom-reset").style("display","none")',
                 '  }',
                 '',
                 '  // Highlight the new feature',
@@ -247,7 +282,7 @@ function generateCode(file,options) {
                 '      .classed("highlighted",function(d) {',
                 '          return d === centered;',
                 function() { return '      })'+(options.strokeWidth ? '' : ';' ); },
-                function() { if (options.strokeWidth) return '      .style("stroke-width", '+options.strokeWidth+' / k + "px"); // Keep the border width constant'; return null; },
+                function() { if (options.strokeWidth) return '      .attr("opacity",1).style("stroke-width", '+options.strokeWidth+' / k + "px"); // Keep the border width constant'; return null; },
                 '',
                 '  //Zoom and re-center the map',
                 '  //Uncomment .transition() and .duration() to make zoom gradual',
@@ -258,6 +293,37 @@ function generateCode(file,options) {
                 '}',
                 ''
             ]);
+
+        codeLines = codeLines.concat([
+            'function resetZoom(d){',
+            '   var x, y, k;',
+            '   x = width / 2;',
+            '   y = height / 2;',
+            '   k = 1;',
+            '   centered = null;',
+            '   d3.select("#zoom-reset").style("display","none")',
+            '',
+            '  // Highlight the new feature',
+            '  features.selectAll("path")',
+            '      .classed("highlighted",function(d) {',
+            '          return d === centered;',
+            function() { return '      })'+(options.strokeWidth ? '' : ';' ); },
+            function() { if (options.strokeWidth) return '      .attr("opacity",1).style("stroke-width", '+options.strokeWidth+' / k + "px"); // Keep the border width constant'; return null; },
+            '',
+            '  //Zoom and re-center the map',
+            '  //Uncomment .transition() and .duration() to make zoom gradual',
+            '  features',
+            '      .transition()',
+            '      .duration(500)',
+            '      .attr("transform","translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")");',
+            '}',
+            '',
+            'd3.select("#zoom-reset").on("click", function(){',
+            '   resetZoom(centered)',
+            '})',
+            ''
+        ])
+
     } else {
         codeLines = codeLines.concat([
                 '',

@@ -564,6 +564,7 @@ function recolor(from) {
 
   if (mapOptions.colorType == "simple") {
     filledPaths.attr("fill",mapOptions.fill);
+    drawLegend()
     return true;
   }
 
@@ -599,7 +600,6 @@ function recolor(from) {
     });
 
   }
-
   drawLegend()
   
 }
@@ -613,10 +613,9 @@ function initLegendDrag(){
 function drawLegend(){
   var Dlegend = d3.select("div#legend"),
       colors;
-  if (dataExtent && dataExtent.length != 0 && mapOptions.choropleth.legend){
+  if (dataExtent && dataExtent.length != 0 && mapOptions.choropleth.legend && mapOptions.colorType == "choropleth"){
     Dlegend.style("display","block")
     
-    console.log(Dlegend.style("top"))
     Dlegend
       .call(initLegendDrag())
 
@@ -873,6 +872,10 @@ function setListeners() {
       $(this).html('Show full report.')
     }
   });
+
+  $("#zoom-reset").click(function(){
+    resetZoom(centered)
+  })
 
   switchLinks.on("click",function() {
     if (!upload.classed("loading") && !fileStatus.classed("loading")) {
@@ -1396,7 +1399,7 @@ function resetMap(from) {
 //Zooming to a feature
 function clicked(d) {   
   if (mapOptions.zoomMode != "feature") return true;
-  
+  var DzoomReset = d3.select("#zoom-reset")
   var x, y, k;
 
   if (d && centered !== d) {        
@@ -1409,13 +1412,36 @@ function clicked(d) {
     k = .8 / Math.max((b[1][0] - b[0][0]) / mapOptions.width, (b[1][1] - b[0][1]) / mapOptions.height);
 
     centered = d;
+    DzoomReset.style("display","block")
 
   } else {
     x = mapOptions.width / 2;
     y = mapOptions.height / 2;
     k = 1;
     centered = null;
+    DzoomReset.style("display","none")
   }
+
+  paths
+      .classed("clicked", centered && function(d) { return d === centered; })
+      .attr("stroke-width", mapOptions.strokeWidth / k + "px");
+
+  if (mapOptions.colorType == "simple") filledPaths.attr("opacity",1).attr("fill", function(d) { return (centered && d === centered) ? mapOptions.highlight : mapOptions.fill; });
+
+  features
+      .transition()
+      .duration(500)
+      .attr("transform", "translate(" + mapOptions.width / 2 + "," + mapOptions.height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")");
+}
+
+function resetZoom(d){
+  var x, y, k;
+  x = mapOptions.width / 2;
+  y = mapOptions.height / 2;
+  k = 1;
+  var DzoomReset = d3.select("#zoom-reset")
+  centered = null;
+  DzoomReset.style("display","none")
 
   paths
       .classed("clicked", centered && function(d) { return d === centered; })
