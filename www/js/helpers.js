@@ -302,3 +302,17 @@ function jenks(data, n_classes) {
   return jenksBreaks(data, lower_class_limits, n_classes);
 
 }
+
+// `jenksBreaks()` returns too many breaks for `d3.scale.threshold()` to handle
+// For starters, it starts with the min value, which d3 doesn't need
+// Second, it takes the max value as the last threshold, which means that when
+// `d3.threshold()` takes that max value, it returns `undefined`
+// To make it worth with d3, it should drop the min value, and make the max value + 1
+function jenksThresholds(data, n_classes){
+  var jenks_breaks = jenks(data, n_classes);
+  // Increase the last value, the max
+  jenks_breaks[jenks_breaks.length - 1]++;
+  // And cut the first value, the min
+  return jenks_breaks.slice(1);
+
+}

@@ -272,6 +272,11 @@ div.panel-group span.form-item {
   margin-right: 2em;
 }
 
+#color-choropleth span.form-item {
+  display: inline-block;
+  margin-bottom: .5em;
+}
+
 div.panel-group span.form-item:last-of-type {
   margin: 0;
 }

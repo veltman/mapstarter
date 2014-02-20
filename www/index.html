@@ -217,6 +217,13 @@
                   <select id="color-choropleth-attribute" class="attribute-list"></select>
                 </span>                          
                 <span class="form-item">
+                  <label for="color-choropleth-clustering">Clustering</label>
+                  <select id="color-choropleth-clustering">
+                    <option value="jenks">Jenks (For finding natural groups)</option>
+                    <option value="equal">Equal intervals (For simple data)</option>
+                  </select>
+                </span>                          
+                <span class="form-item">
                   <label for="color-choropleth-buckets"># of colors</label>
                   <select id="color-choropleth-buckets">
                     <option value="3">3</option>
@@ -230,6 +237,7 @@
                     <option value="11">11</option>
                   </select>
                 </span>
+                <div class="clear"></div>
                 <span class="form-item">
                   <label for="color-choropleth-default">Default (blank/non-numeric values)</label>
                   <input type="color" class="text" id="color-choropleth-default" value="#999999" />

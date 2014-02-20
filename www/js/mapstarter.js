@@ -48,7 +48,7 @@ var mapOptions = {
   highlight: "tomato",  
   hoverLightness: .75,
   colorType: "simple",
-  choropleth: {buckets: 3, type: "numeric", scaleName: "YlGn", scale: d3.scale.quantize(), reverse: false, attribute: null, map: {}, default: "#999", attributeProblem: false, legend: true, legendMarkup: null},
+  choropleth: {buckets: 3, type: "numeric", scaleName: "YlGn", scaleType: 'jenks', scale: d3.scale.quantize(), reverse: false, attribute: null, map: {}, default: "#999", attributeProblem: false, legend: true, legendMarkup: null},
   zoomMode: "free",
   responsive: false,
   tooltip: false
@@ -512,6 +512,7 @@ function showSection(section,preserveAlerts) {
 
 function populateScales() {  
   
+  mapOptions.choropleth.scaleType = $("select#color-choropleth-clustering").val();  
   mapOptions.choropleth.buckets = parseInt($("select#color-choropleth-buckets").val());  
   mapOptions.choropleth.attribute = $("select#color-choropleth-attribute").val();
 
@@ -583,7 +584,11 @@ function recolor(from) {
     mapOptions.choropleth.scale = d3.scale.quantize().domain([0,1]).range(colors);
   } else {              
     dataExtent = d3.extent(mapped)
-    mapOptions.choropleth.scale = d3.scale.quantize().domain(dataExtent).range(colors);
+    if (mapOptions.choropleth.scaleType == 'jenks'){
+      mapOptions.choropleth.scale = d3.scale.threshold().domain(jenksThresholds(mapped, mapOptions.choropleth.buckets)).range(colors)
+    } else {
+      mapOptions.choropleth.scale = d3.scale.quantize().domain(dataExtent).range(colors);
+    }
 
     filledPaths.attr("fill",function(d){
       if (!d.properties || !mapOptions.choropleth.attribute) {
@@ -821,6 +826,11 @@ function setListeners() {
 
   $("select#tooltip-attribute").change(function() {
     mapOptions.tooltip = $(this).val();
+  });
+
+  $("select#color-choropleth-clustering").change(function() {
+    populateScales();
+    recolor();
   });
 
   $("select#color-choropleth-buckets").change(function() {
