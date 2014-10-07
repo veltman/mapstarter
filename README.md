@@ -68,6 +68,8 @@ To do list
 * Auto-delete weird features (i.e. tiny islands)
 * Split a feature into its constituent parts and edit in detail.
 * KML importing?  Do people still use KML?
+* Make this work with Express v4
+* Create a package.json
 
 Get in touch
 ------------

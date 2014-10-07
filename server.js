@@ -1,53 +1,52 @@
-var fs = require('fs');
-var express = require('express');
+var fs = require("fs"),
+    express = require("express"),
+    path = require("path"),
+    ogr2ogr = require("ogr2ogr");
 
 var app = express();
 
-var logFile = fs.createWriteStream('./mapstarter.log', {flags: 'a'});
+var logFile = fs.createWriteStream("./mapstarter.log", {flags: "a"});
 
-app.use(express.bodyParser({limit: '100mb'}));
-app.use(express.logger({format: ':remote-addr - - [:date] ":method :url HTTP/:http-version" :status :res[content-length] (:response-time ms) ":referrer" ":user-agent"', stream: logFile}));
+app.use(express.bodyParser({limit: "100mb"}));
 app.use(express.compress());
 
-app.post(/^\/?convert\/geo-to-topo\/?$/,function(req,res) {
+app.post("/convert/geo-to-topo/",function(req,res) {
 
-	var topojson = require('topojson');
+  var topojson = require("topojson");
 
-	res.setHeader('Content-Type', 'application/json');
+  res.setHeader("Content-Type", "application/json");
 
-	if (!req.body || !req.body.geojson) {		
-		res.send(JSON.stringify({error: "Invalid GeoJSON received."}));
-		return true;
-	}
+  if (!req.body || !req.body.geojson) {   
+    res.send(JSON.stringify({error: "Invalid GeoJSON received."}));
+    return true;
+  }
 
-	try {
+  try {
 
-		var geo = JSON.parse(req.body.geojson);
-		var topo = topojson.topology({collection: geo},
-			{ "property-transform": function(properties, key, value) { 
-					properties[key] = value;
-					return true; 
-				}
-			}
-		);
+    var geo = JSON.parse(req.body.geojson);
+    var topo = topojson.topology({collection: geo},
+      { "property-transform": function(properties, key, value) { 
+          properties[key] = value;
+          return true; 
+        }
+      }
+    );
 
-		console.log("Successfully served a topology");
-		res.send(JSON.stringify(topo));
-		return true;
+    console.log("Successfully served a topology");
+    res.send(JSON.stringify(topo));
+    return true;
 
-	} catch(err) {  
-		console.log(err);
-		res.send(JSON.stringify({error: err}));
-		return true;
-	}
+  } catch(err) {  
+    console.log(err);
+    res.send(JSON.stringify({error: err}));
+    return true;
+  }
 
 });
 
-app.post(/^\/?convert\/shp-to-geo\/?$/,function(req,res) {
+app.post("/convert/shp-to-geo",function(req,res) {
 
-	console.log(req);
-
-    res.setHeader('Content-Type', 'application/json');    
+    res.setHeader("Content-Type", "application/json");
 
     if (!req.body || !req.files || (!req.files.zip && (!req.files.shp || !req.files.dbf || !req.files.shx))) {
             res.send(JSON.stringify({error: "Invalid shapefile received."}));
@@ -56,132 +55,54 @@ app.post(/^\/?convert\/shp-to-geo\/?$/,function(req,res) {
 
     try {
 
-    	var tmp = null;
+      var paths = [];
 
-    	var paths = [];
+      if (req.files.zip) {
 
-    	if (req.files.zip) {
+        paths.push(req.files.zip.path);
 
-    		var toJSON = require('shp2json');
-    		var Stream = require('stream').Stream;
+      } else if (req.files.shp && req.files.dbf && req.files.shx) {
+ 
+        ["shp","dbf","shx","prj"].forEach(function(f) {
+          if (!req.files[f]) return true;
+          fs.renameSync(req.files[f].path,req.files.shp.path.replace(/[.][a-z]+$/i,"."+f));
+          paths.push(req.files.shp.path.replace(/[.][a-z]+$/i,"."+f));
+        });
 
-    		paths.push(req.files.zip.path);
+      } else {
 
-    		var inStream = fs.createReadStream(req.files.zip.path);
+        return res.send(JSON.stringify({error: "No .zip or .shp/.shx/.dbf file received."}));
 
-			var outStream = new Stream;
-			outStream.writable = true;
+      }
 
-			var data = '';
+      var ogr = ogr2ogr(paths[0])
+        .format("GeoJSON")
+        .skipfailures();
 
-			outStream.write = function (buf) {
-			    data += buf;
-			};
+      ogr.exec(function(err, data) {
 
-			outStream.end = function () {    			    
-			    res.send(data);
+        if (err) {
+          console.error(err);
+          res.send(JSON.stringify({error: err}));
+        } else {
+          res.send(JSON.stringify(data));
+        }
 
-			    paths.forEach(function(p) {
-			    	fs.unlinkSync(p);
-			    })
-			};
+        paths.forEach(function(p) {
+          fs.unlinkSync(p);
+        });
 
-			toJSON(inStream).pipe(outStream);
-
-		} else if (req.files.shp && req.files.dbf && req.files.shx) {	
-
-			var spawn = require('child_process').spawn;
-			var Stream = require('stream').Stream;
-			//var BufferedStream = require('morestreams').BufferedStream;
-
-			["shp","dbf","shx","prj"].forEach(function(f) {								
-				if (!req.files[f]) return true;
-				fs.renameSync(req.files[f].path,req.files.shp.path.replace(/[.][a-z]+$/i,"."+f));
-				paths.push(req.files.shp.path.replace(/[.][a-z]+$/i,"."+f));
-			});
-
-			var outStream = new Stream;    		
-    		outStream.writable = true;
-
-			var data = '';
-
-			outStream.write = function (buf) {
-			    data += buf;
-			};
-
-			outStream.end = function () {			    
-			    res.send(data);
-
-			    paths.forEach(function(p) {
-			    	fs.unlinkSync(p);
-			    })
-			};    		
-
-			var args = [
-                '-f', 'GeoJSON',
-                '-skipfailures',
-                '-t_srs',
-                'EPSG:4326',
-                '-a_srs',
-                'EPSG:4326'];
-
-            if (!req.files["prj"]) args = args.concat(['-s_srs','EPSG:4326']);
-
-			args = args.concat(['/vsistdout/',paths[0]]);
-
-            var ps = spawn('ogr2ogr', args);
-            ps.stdout.pipe(outStream, { end : false });
-            ps.stderr.pipe(outStream, { end : false });
-            
-            var pending = 2;
-            function onend () { if (--pending === 0) outStream.end() }
-            ps.stdout.on('end', onend);
-            ps.stderr.on('end', onend);
-			
-
-		} else {
-			res.send(JSON.stringify({error: "No .zip or .shp/.shx/.dbf file received."}));
-	        return true;	    	
-		}
+      });
 
     } catch(err) {
-            console.log(err);
-            res.send(JSON.stringify({error: err}));
-            return true;
+
+        res.send(JSON.stringify({error: err}));
+        return true;
+
     }
 
 });
 
-app.get(/.*/,function(req,res) {	
-
-	var path = '/var/mapstarter/www'+req.url;		
-
-	fs.stat(path,function(err, stats) {
-		if (err) {
-			res.send(404, 'Sorry, '+req.url+' doesn\'t exist!');
-			return false;
-		}
-
-		if (!stats.isDirectory()) {
-			res.sendfile(path);
-			return true;
-		}
-
-		var indexPath = path.replace(/\/+$/,"")+"/index.html";		
-
-		fs.stat(indexPath,function(err2, stats2) {			
-
-			if (err2 || !stats2 || stats2.isDirectory()) {
-				res.send(404, 'Sorry, '+req.url+' doesn\'t exist!');
-				return false;
-			}
-
-			res.sendfile(indexPath);
-
-		});
-
-	});
-
-});
+app.use(express.static(path.join(__dirname,"www")));
 
 app.listen(80);
