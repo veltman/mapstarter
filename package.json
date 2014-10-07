@@ -1,0 +1,30 @@
+{
+  "name": "mapstarter",
+  "version": "0.1.0",
+  "description": "Easily create and edit SVG maps for the web",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/veltman/mapstarter.git"
+  },
+  "keywords": [
+    "maps",
+    "svg",
+    "d3"
+  ],
+  "author": "Noah Veltman",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/veltman/mapstarter/issues"
+  },
+  "homepage": "https://github.com/veltman/mapstarter",
+  "dependencies": {
+    "ogr2ogr": "~0.3.1",
+    "topojson": "~1.6.18",
+    "express": "~3.4.4"
+  }
+}
