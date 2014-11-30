@@ -25,9 +25,8 @@ app.post("/convert/geo-to-topo/",function(req,res) {
 
     var geo = JSON.parse(req.body.geojson);
     var topo = topojson.topology({collection: geo},
-      { "property-transform": function(properties, key, value) { 
-          properties[key] = value;
-          return true; 
+      { "property-transform": function(object) { 
+          return object.properties;
         }
       }
     );
